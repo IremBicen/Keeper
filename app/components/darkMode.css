@@ -1,0 +1,460 @@
+/* -------------- Dark Mode Theme ----------------------------- */
+
+/* General Layout */
+/*----------------Dasboard Page--------------------------*/
+.dark .dashboard-container {
+    background: linear-gradient(to bottom right, #1f2937, #111827);
+}
+
+.dark .dashboard-main {
+    background-color: rgba(17, 24, 39, 0.6);
+    color: #d1d5db;
+}
+
+.dark .dashboard-header,
+.dark .surveys-header,
+.dark .categories-header {
+    border-bottom-color: #374151;
+}
+
+.dark .categories-header-subcategories {
+    border-bottom-color: #374151;
+}
+
+.dark .categories-header-subcategories h1 {
+    color: #ffffff;
+}
+
+.dark .subcategories-header,
+.dark .users-header {
+    border-bottom-color: #374151;
+}
+
+.dark .dashboard-title,
+.dark .surveys-title,
+.dark .categories-title,
+.dark .subcategories-title,
+.dark .users-title {
+    color: #ffffff;
+}
+
+/* User Box */
+.dark .dashboard-user-box {
+    background-color: #1f2937;
+    border-color: #374151;
+    color: #d1d5db;
+}
+
+/* Stat Boxes and Containers */
+.dark .box-container,
+.dark .stat-box {
+    background-color: #1f2937;
+    border-color: #374151;
+    color: #d1d5db;
+}
+
+.dark .stat-box-title {  /* Statistics Box Title (Total Evaluations, Saved Evaluations, Draft Evaluations) */
+    color: #9ca3af;
+}
+
+.dark .box-title {  /* Box Title (Total Evaluations, Saved Evaluations, Draft Evaluations) */
+    color: #ffffff;
+}
+
+/* Tables */
+.dark .table-container th {
+    background-color: #1f2937;
+    border-bottom-color: #374151;
+    color: #9ca3af;
+}
+
+.dark .table-container td {
+    border-bottom-color: #374151;
+    color: #d1d5db;
+}
+
+.dark .table-container tbody tr:hover {
+    background-color: #2b2f3a !important; /* Override all other hover styles */
+}
+
+.dark .scores-table tbody tr:hover {
+    background-color: #2b2f3a !important; /* Override specific employee details hover */
+}
+
+/* Status Badges */
+.dark .status-submitted,
+.dark .status-active {
+    background-color: #064e3b;
+    color: #a7f3d0;
+}
+
+.dark .status-draft,
+.dark .status-inactive,
+.dark .status-not-started {
+    background-color: #374151;
+    color: #d1d5db;
+}
+
+/* ------------------ Survey Form ------------------ */
+.dark .form-container {
+    background-color: #111827; /* Dark background for the page */
+}
+
+.dark .form-content {
+    background: #1f2937; /* Dark background for the form itself */
+    border-color: #374151;
+}
+
+.dark .form-title,
+.dark .form-header-info h3,
+.dark .dates-section h3,
+.dark .category-title {
+    color: #ffffff; /* White titles */
+}
+
+.dark .form-header-info h3 span,
+.dark .dates-section p,
+.dark .subcategory-name,
+.dark .rating-label {
+    color: #d1d5db; /* Lighter text for details */
+}
+
+.dark .form-header,
+.dark .form-footer,
+.dark .category-title,
+.dark .subcategory-item {
+    border-color: #374151;
+}
+
+.dark .form-header-info,
+.dark .dates-section,
+.dark .category-box {
+    background-color: #1f2937;
+    border-color: #374151;
+}
+
+/* ------------------ Form Success Message ------------------ */
+.dark .success-container-inline {
+    background-color: #111827;
+}
+
+.dark .success-box-inline {
+    background: #1f2937;
+    border-color: #374151;
+}
+
+.dark .success-box-inline h2 {
+    color: #a7f3d0;
+}
+
+.dark .success-box-inline p {
+    color: #d1d5db;
+}
+
+.dark .category-tag{
+    color: #d1d5db;
+    font-size: 1rem;
+}
+
+/* ------------------ Surveys Page ------------------ */
+.dark .btn-primary {
+    background-color: #4a5454;
+    color: #ffffff;
+}
+
+.dark .btn-primary:hover {
+    background-color: #b1b2b3;
+    color: #ffffff;
+}
+ 
+/*-------------Preview Modal--------------------------*/
+.dark .preview-modal-content {
+    background: #1f2937;
+    color: #d1d5db;
+}
+
+.dark .preview-modal-header,
+.dark .preview-category-box h4,
+.dark .preview-subcategory-item,
+.dark .preview-modal-footer {
+    border-color: #374151;
+}
+
+.dark .preview-modal-title,
+.dark .preview-modal-body h3,
+.dark .preview-category-box h4 {
+    color: #ffffff;
+}
+
+.dark .preview-category-box {
+    background-color: #2b2f3a;
+    border-color: #374151;
+}
+
+.dark .preview-close-button {
+    color: #d1d5db;
+}
+ 
+/*-------------Edit Modal--------------------------*/
+.dark .edit-survey-content {
+    background: #1f2937;
+    color: #d1d5db;
+}
+
+.dark .edit-survey-header,
+.dark .edit-survey-footer {
+    border-color: #374151;
+}
+
+.dark .edit-survey-title,
+.dark .edit-survey-body h3,
+.dark .edit-survey-body label {
+    color: #ffffff;
+}
+
+.dark .edit-survey-content input[type="text"],
+.dark .edit-survey-content input[type="date"],
+.dark .drop-zone {
+    background-color: #2b2f3a;
+    border-color: #374151;
+    color: #d1d5db;
+}
+
+.dark .drop-zone {
+    color: #9ca3af;
+}
+
+.dark .category-item.draggable {
+    background-color: #374151;
+    border-color: #4b5563;
+}
+
+.dark .draggable.selected {
+    background-color: #2b2f3a;
+    color: #6b7280;
+}
+
+.dark .dropped-category {
+    background-color: #4b5563;
+    border-color: #6b7280;
+    color: #ffffff;
+}
+
+.dark .edit-survey-close-button {
+    color: #d1d5db;
+}
+ 
+/*-------------Delete Modal--------------------------*/
+.dark .delete-confirmation-content {
+    background: #1f2937;
+    color: #d1d5db;
+}
+
+.dark .delete-confirmation-header h2 {
+    color: #ffffff;
+}
+
+.dark .delete-confirmation-body p {
+    background-color: #2b2f3a;
+    border-color: #374151;
+    color: #d1d5db;
+}
+
+/*------------Adding New Survey Form Modal--------------------------*/
+.dark .new-survey-content {
+    background: #1f2937;
+    color: #d1d5db;
+}
+
+.dark .new-survey-header,
+.dark .new-survey-footer {
+    border-color: #374151;
+}
+
+.dark .new-survey-title {
+    color: #ffffff;
+}
+
+.dark .new-survey-close-button {
+    color: #d1d5db;
+}
+
+/*------------Adding New Category Form Modal--------------------------*/
+.dark .modal-content {
+    background: #1f2937;
+    color: #d1d5db;
+}
+
+.dark .modal-header,
+.dark .modal-footer {
+    border-color: #374151;
+}
+
+.dark .modal-title,
+.dark .edit-form label {
+    color: #ffffff;
+}
+
+.dark .close-button {
+    color: #d1d5db;
+}
+
+.dark .edit-form input {
+    background-color: #2b2f3a;
+    border-color: #374151;
+    color: #d1d5db;
+}
+
+.dark .form-group-category label {
+    color: #9ca3af;
+}
+
+.dark .form-group-category input {
+    background-color: #2b2f3a;
+    border-color: #374151;
+    color: #d1d5db;
+}
+
+/*------------Editing Category Form Page--------------------------*/
+.dark .edit-category-content {
+    background: #1f2937;
+    color: #d1d5db;
+}
+
+.dark .edit-category-title {
+    color: #ffffff;
+}
+
+.dark .subcategories-table-container {
+    background-color: #1f2937;
+    border-color: #374151;
+    color: #d1d5db;
+}
+
+.dark .search-box-subcategories,
+.dark .search-select-subcategories,
+.dark .search-input-subcategories {
+    background-color: #2b2f3a;
+    border-color: #374151;
+    color: #d1d5db;
+}
+
+.dark .subcategories-table th {
+    background-color: #1f2937;
+    border-bottom-color: #374151;
+    color: #9ca3af;
+}
+
+.dark .subcategories-table td {
+    border-bottom-color: #374151;
+    color: #d1d5db;
+}
+
+.dark .subcategories-table tbody tr:hover {
+    background-color: #2b2f3a;
+}
+
+/*------------Editing Subcategory Form Page--------------------------*/
+.dark .edit-subcategory-content {
+    background: #1f2937;
+    color: #d1d5db;
+}
+
+.dark .edit-subcategory-header,
+.dark .edit-subcategory-footer {
+    border-color: #374151;
+}
+
+.dark .edit-subcategory-title,
+.dark .edit-form-subcategories label {
+    color: #ffffff;
+}
+
+.dark .edit-form-subcategories input,
+.dark .read-only-input {
+    background-color: #2b2f3a;
+    border-color: #374151;
+    color: #d1d5db;
+}
+
+.dark .edit-subcategory-close-button {
+    color: #d1d5db;
+}
+
+/*------------Adding New Subcategory Form Page--------------------------*/
+.dark .form-select {
+    background-color: #2b2f3a;
+    border-color: #374151;
+    color: #d1d5db;
+}
+
+/*------------Specific Employee Details Form--------------------------*/
+.dark .employee-details-modal-content,
+.dark .employee-details-container {
+    background: #1f2937;
+    color: #d1d5db;
+}
+
+.dark .details-header,
+.dark .modal-header {
+    border-color: #374151;
+}
+
+.dark .details-header h2,
+.dark .modal-header h2 {
+    color: #ffffff;
+}
+
+.dark .info-row {
+    border-color: #374151;
+}
+
+.dark .info-label,
+.dark .form-group label {
+    color: #9ca3af;
+}
+
+.dark .form-group input {
+    background-color: #2b2f3a;
+    border-color: #374151;
+    color: #d1d5db;
+}
+
+.dark .form-group-subcategory label {
+    color: #9ca3af;
+}
+
+.dark .form-group-subcategory input[type="text"],
+.dark .form-group-subcategory input[type="number"],
+.dark .form-group-subcategory .form-select {
+    background-color: #2b2f3a;
+    border-color: #374151;
+    color: #d1d5db;
+}
+
+.dark .summary-bar {
+    background-color: #2b2f3a;
+    border-color: #374151;
+}
+
+.dark .summary-label {
+    color: #9ca3af;
+}
+
+.dark .summary-value {
+    color: #ffffff;
+}
+
+.dark .scores-table th,
+.dark .scores-table td {
+    border-color: #374151;
+}
+
+.dark .scores-table th {
+    background-color: #2b2f3a;
+    color: #ffffff;
+}
+
+.dark .scores-table .score-group-header {
+    background-color: #374151;
+}

@@ -1,0 +1,161 @@
+.new-survey-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1001;
+}
+  
+.new-survey-content {
+  background: #fff;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  width: 80%;
+  max-width: 800px;
+  position: relative;
+}
+
+.new-survey-content.new-survey-modal {
+  width: 100%;
+  max-width: 800px;
+}
+  
+.new-survey-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 1rem;
+  margin-bottom: 1.5rem;
+}
+  
+.new-survey-title {
+  margin: 0;
+  font-size: 1.5rem;
+}
+ 
+.new-survey-body h3 {
+  font-weight: bold;
+}
+ 
+.new-survey-body {
+  padding-top: 10px;
+}
+  
+.form-layout {
+  display: flex;
+    gap: 20px;
+}
+  
+.left-side, .right-side {
+  flex: 1;
+}
+
+.survey-details + .survey-details {
+  margin-top: 20px;
+}
+ 
+.survey-category {
+  margin-top: 20px;
+}
+
+.category-list .category-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+  
+input[type="text"] {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+  
+label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+.date-input {
+  border: 1px solid #ccc;
+  padding: 8px;
+  border-radius: 4px;
+  width: 100%;
+}
+ 
+.new-survey-footer {
+  display: flex;
+  justify-content: center;
+  padding-top: 1.5rem;
+  margin-top: 2rem;
+  border-top: 1px solid #eee;
+}
+  
+/* Draggable Category Styles */
+.draggable {
+  padding: 10px;
+  margin: 5px 0;
+  background-color: #ffffff;
+  border: 1px solid #ddd;
+  cursor: grab;
+  border-radius: 4px;
+}
+
+.draggable.selected {
+  background-color: #f0f0f0;
+  color: #888;
+  cursor: not-allowed;
+}
+
+.draggable:active {
+  cursor: grabbing;
+}
+
+/* Drop Zone Styles */
+.drop-zone {
+  border: 2px dashed #ccc;
+  padding: 20px;
+  padding-top: 35px;
+  text-align: center;
+  color: #888;
+  min-height: 100px;
+  max-height: 150px;
+  overflow-y: auto;
+  border-radius: 4px;
+}
+
+.drop-zone.hovered {
+  background-color: #f0f0f0;
+}
+
+.dropped-category {
+  padding: 8px;
+  background-color: #e7e7e7;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  margin-bottom: 5px;
+  cursor: pointer;
+}
+
+.error-message {
+  color: #cc0000;
+  font-size: 0.875rem;
+  margin-bottom: -20px;
+}
+
+.new-survey-close-button {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  line-height: 1;
+  color: #71717a;
+}

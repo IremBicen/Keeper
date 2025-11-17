@@ -1,0 +1,44 @@
+.delete-confirmation-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1002; /* Higher z-index to appear above other modals if needed */
+}
+
+.delete-confirmation-content {
+  background: #fff;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+  width: 90%;
+  max-width: 450px; /* Smaller width for confirmation dialogs */
+  text-align: center;
+}
+
+.delete-confirmation-header h2 {
+  margin: 0;
+  margin-bottom: 1rem;
+  font-size: 1.5rem;
+}
+
+.delete-confirmation-body p {
+  margin-bottom: 2rem;
+  font-size: 1.1rem;
+  color: #333;
+  border: 2px solid #eee;
+  border-radius: 8px;
+  padding: 1rem;
+  background-color: #f9fafb;
+}
+
+.delete-confirmation-footer {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}

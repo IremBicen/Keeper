@@ -1,0 +1,25 @@
+.surveys-main {
+  padding: 1.5rem 2.5rem;
+}
+
+.surveys-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 0;
+  background-color: transparent;
+  border-bottom: 1px solid #e4e4e7;
+}
+
+.surveys-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.surveys-table-container {
+  margin-top: 20px;
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}

@@ -1,0 +1,243 @@
+.form-container {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 100vh;
+  background-color: #f0f2f5;
+  padding: 40px 20px;
+}
+
+.form-content {
+  background: white;
+  padding: 30px 40px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 800px;
+  position: relative;
+}
+
+.form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #e0e0e0;
+  padding-bottom: 20px;
+  margin-bottom: 20px;
+}
+
+.form-title {
+  margin: 0;
+  font-weight: 500;
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: #111827;
+}
+
+/*-----------Header Info Section--------------------*/
+.form-header-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border: 2px solid #ccc;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.form-header-info div {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-header-info h3 {
+  margin: 2px 0;
+  font-size: 1rem;
+  color: #111827;
+  font-weight: bold;
+}
+
+.form-header-info h3 span {
+  font-weight: normal;
+  color: #555;
+}
+
+.form-header-info img {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/*----------------------------------------*/
+
+.form-body {
+  padding-top: 10px;
+}
+
+.dates-section {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-bottom: 20px;
+  padding: 20px;
+  border: 2px solid #ccc;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.start-date, .end-date {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dates-section h3 {
+  margin: 0;
+  font-weight: 500;
+  font-size: 1rem;
+  font-weight: bold;
+  color: #111827;
+}
+
+.dates-section p {
+  margin: 0;
+  font-weight: 500;
+  color: #555;
+}
+
+.categories-container {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+
+.category-box {
+  background-color: #fff;
+  border: 2px solid #ccc;
+  border-radius: 8px;
+  padding: 24px;
+  transition: box-shadow 0.2s;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.category-box:focus-within {
+  box-shadow: 0 0 0 2px #1a73e8;
+}
+
+.category-title {
+  text-align: left;
+  margin: 0 0 20px 0;
+  font-weight: 500;
+  font-size: 1.2rem;
+  border-bottom: 1px solid #e0e0e0;
+  padding-bottom: 15px;
+  font-weight: bold;
+  color: #111827;
+}
+
+.subcategory-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.subcategory-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.subcategory-name {
+  margin: 0;
+  font-weight: 400;
+  font-size: 1rem;
+  color: #202124;
+  margin-bottom: 12px;
+}
+
+.rating-group {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  width: 100%;
+  padding: 10px 0;
+}
+
+.rating-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: #5f6368;
+}
+
+.rating-label input[type="radio"] {
+  width: 20px;
+  height: 20px;
+}
+
+.error-message {
+  color: #d93025;
+  font-size: 1rem;
+  margin-top: 5px;
+}
+
+.ratings-error {
+  text-align: center;
+  margin: 15px 0;
+}
+
+.form-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 20px;
+  border-top: 1px solid #e0e0e0;
+  margin-top: 20px;
+}
+
+.category-box,
+.form-header-info {
+    border: 2px solid #ccc;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+/* Styles for the inline success message */
+.success-container-inline {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: #f0f2f5;
+  padding: 40px 20px;
+}
+
+.success-box-inline {
+  text-align: center;
+  background: white;
+  padding: 40px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 600px;
+}
+
+.success-box-inline h2 {
+  color: #378328;
+  margin-bottom: 20px;
+  font-weight: bold;
+  font-size: 1.5rem;
+}
+
+.success-box-inline p {
+  font-size: 1rem;
+  color: #555;
+  margin-bottom: 20px;
+}
