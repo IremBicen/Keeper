@@ -9,6 +9,14 @@
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
+node_modules/
+dovec-keeper-frontend/node_modules/
+dovec-keeper-backend/node_modules/
+
+# Next.js build
+.next/
+dovec-keeper-frontend/.next/
+
 
 # testing
 /coverage
