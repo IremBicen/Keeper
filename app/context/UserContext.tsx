@@ -1,44 +1,78 @@
 "use client";
 
-import { createContext, useState, useEffect, useContext, ReactNode } from 'react';
+import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 
-type Role = 'admin' | 'manager';
+type User = {
+  id: string;
+  name: string;
+  email: string;
+  role: "admin" | "manager" | "employee";
+  department?: string;
+};
 
-interface UserContextType {
-    role: Role;
-    setRole: (role: Role) => void;
-}
+type UserContextType = {
+  user: User | null;
+  token: string | null;
+  role: "admin" | "manager" | "employee";
+  setRole: (role: "admin" | "manager" | "employee") => void;
+  login: (user: User, token: string) => void;
+  logout: () => void;
+};
 
-const UserContext = createContext<UserContextType | undefined>(undefined);
+const UserContext = createContext<UserContextType>({
+  user: null,
+  token: null,
+  role: "employee",
+  setRole: () => {},
+  login: () => {},
+  logout: () => {},
+});
 
-export function UserProvider({ children }: { children: ReactNode }) {
-    const [role, setRole] = useState<Role>('manager'); // Default role
+export const UserProvider = ({ children }: { children: ReactNode }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [role, setRole] = useState<"admin" | "manager" | "employee">("employee");
 
-    useEffect(() => {
-        // On component mount, try to get the role from local storage
-        const storedRole = localStorage.getItem('userRole');
-        if (storedRole === 'admin' || storedRole === 'manager') {
-            setRole(storedRole);
-        }
-    }, []);
+  // LocalStorage’dan geri yükleme
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    const storedToken = localStorage.getItem("token");
+    const storedRole = localStorage.getItem("role");
 
-    const handleSetRole = (newRole: Role) => {
-        // Update state and local storage
-        setRole(newRole);
-        localStorage.setItem('userRole', newRole);
-    };
-
-    return (
-        <UserContext.Provider value={{ role, setRole: handleSetRole }}>
-            {children}
-        </UserContext.Provider>
-    );
-}
-
-export function useUser() {
-    const context = useContext(UserContext);
-    if (context === undefined) {
-        throw new Error('useUser must be used within a UserProvider');
+    if (storedUser && storedToken) {
+      setUser(JSON.parse(storedUser));
+      setToken(storedToken);
     }
-    return context;
-}
+
+    if (storedRole) {
+      setRole(storedRole as any);
+    }
+  }, []);
+
+  const login = (user: User, token: string) => {
+    setUser(user);
+    setToken(token);
+    setRole(user.role);
+
+    localStorage.setItem("user", JSON.stringify(user));
+    localStorage.setItem("token", token);
+    localStorage.setItem("role", user.role);
+  };
+
+  const logout = () => {
+    setUser(null);
+    setToken(null);
+    setRole("employee");
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
+  };
+
+  return (
+    <UserContext.Provider value={{ user, token, role, setRole, login, logout }}>
+      {children}
+    </UserContext.Provider>
+  );
+};
+
+export const useUser = () => useContext(UserContext);

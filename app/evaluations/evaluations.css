@@ -1,0 +1,278 @@
+.evaluation-selection {
+  margin: 1rem 2.5rem;
+  padding: 2rem;
+}
+
+.evaluation-selection-header {
+  margin-bottom: 2rem;
+}
+
+.evaluation-selection-subtitle {
+  color: #6b7280;
+  font-size: 0.9375rem;
+  margin-top: 0.5rem;
+}
+
+.evaluation-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-group label {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.label-text {
+  font-size: 0.9375rem;
+}
+
+.label-required {
+  color: #ef4444;
+  font-size: 0.875rem;
+}
+
+.form-select {
+  padding: 0.75rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  background-color: white;
+  color: #111827;
+  font-size: 0.9375rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.form-select:hover:not(:disabled) {
+  border-color: #9ca3af;
+}
+
+.form-select:disabled {
+  background-color: #f3f4f6;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.info-text {
+  color: #6b7280;
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+}
+
+.form-actions {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.evaluation-start-btn {
+  padding: 0.875rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.evaluation-header-container {
+  background-color: #1f2937;
+  border-bottom: 1px solid #374151;
+  margin-bottom: 1rem;
+  color: #e5e7eb;
+}
+
+.evaluation-header {
+  padding: 1.5rem 2.5rem;
+}
+
+.evaluation-header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.evaluation-title {
+  color: #e5e7eb;
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.evaluation-back-btn {
+  background-color: #374151;
+  color: #e5e7eb;
+  border: 1px solid #4b5563;
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.5rem;
+  font-size: 0.9375rem;
+  transition: all 0.2s;
+}
+
+.evaluation-back-btn:hover {
+  background-color: #4b5563;
+}
+
+.evaluation-info {
+  display: flex;
+  gap: 2rem;
+  padding: 1.25rem;
+  background: linear-gradient(135deg, #374151 0%, #4b5563 100%);
+  border: 1px solid #4b5563;
+  border-radius: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.evaluation-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.evaluation-info-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.evaluation-info-value {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: #e5e7eb;
+}
+
+.evaluation-form-wrapper {
+  padding: 0 2.5rem 2rem 2.5rem;
+}
+
+.evaluation-form-wrapper .form-container {
+  background-color: transparent;
+  padding: 0;
+  min-height: auto;
+}
+
+.evaluation-form-wrapper .form-content {
+  box-shadow: none;
+  padding: 0;
+  max-width: 100%;
+  background: transparent;
+}
+
+.evaluation-form-wrapper .form-header {
+  padding: 1rem 0;
+  margin-bottom: 1rem;
+}
+
+.evaluation-form-wrapper .form-title {
+  font-size: 1.25rem;
+}
+
+.evaluation-form-wrapper .form-header-info {
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border: 1px solid #4b5563;
+  background-color: #374151;
+  color: #e5e7eb;
+}
+
+.evaluation-form-wrapper .form-header-info h3 {
+  font-size: 0.875rem;
+  color: #e5e7eb;
+}
+
+.evaluation-form-wrapper .form-header-info h3 span {
+  color: #9ca3af;
+}
+
+.evaluation-form-wrapper .dates-section {
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border: 1px solid #4b5563;
+  background-color: #374151;
+  flex-direction: row;
+  justify-content: space-around;
+}
+
+.evaluation-form-wrapper .dates-section h3,
+.evaluation-form-wrapper .dates-section p {
+  font-size: 0.875rem;
+  color: #e5e7eb;
+}
+
+.evaluation-form-wrapper .category-box {
+  padding: 1.25rem;
+  border: 1px solid #4b5563;
+  background-color: #374151;
+}
+
+.evaluation-form-wrapper .category-title {
+  font-size: 1rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom-color: #4b5563;
+  color: #e5e7eb;
+}
+
+.evaluation-form-wrapper .subcategory-name {
+  font-size: 0.875rem;
+  color: #e5e7eb;
+}
+
+.evaluation-form-wrapper .rating-label {
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.evaluation-form-wrapper .form-footer {
+  padding-top: 1rem;
+  margin-top: 1rem;
+  border-top-color: #4b5563;
+}
+
+/* Dark mode styles */
+.dark .evaluation-selection {
+  background-color: #1f2937;
+  border-color: #374151;
+  color: #d1d5db;
+}
+
+.dark .box-title {
+  color: #ffffff;
+}
+
+.dark .evaluation-selection-subtitle {
+  color: #9ca3af;
+}
+
+.dark .form-group label {
+  color: #ffffff;
+}
+
+.dark .form-select {
+  background-color: #2b2f3a;
+  border-color: #374151;
+  color: #d1d5db;
+}
+
+.dark .form-select:hover:not(:disabled) {
+  border-color: #4b5563;
+}
+
+.dark .form-select:disabled {
+  background-color: #374151;
+  color: #6b7280;
+}
+
+.dark .info-text {
+  color: #9ca3af;
+}
+

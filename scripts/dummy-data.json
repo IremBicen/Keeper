@@ -1,0 +1,311 @@
+{
+  "users": [
+    {
+      "name": "John Doe",
+      "email": "john.doe@company.com",
+      "password": "password123",
+      "role": "employee",
+      "department": "Engineering"
+    },
+    {
+      "name": "Jane Smith",
+      "email": "jane.smith@company.com",
+      "password": "password123",
+      "role": "employee",
+      "department": "Marketing"
+    },
+    {
+      "name": "Mike Johnson",
+      "email": "mike.johnson@company.com",
+      "password": "password123",
+      "role": "employee",
+      "department": "Sales"
+    },
+    {
+      "name": "Sarah Williams",
+      "email": "sarah.williams@company.com",
+      "password": "password123",
+      "role": "employee",
+      "department": "HR"
+    },
+    {
+      "name": "David Brown",
+      "email": "david.brown@company.com",
+      "password": "password123",
+      "role": "employee",
+      "department": "Engineering"
+    }
+  ],
+  "categories": [
+    {
+      "name": "Performance",
+      "parent": null
+    },
+    {
+      "name": "Teamwork",
+      "parent": null
+    },
+    {
+      "name": "Leadership",
+      "parent": null
+    },
+    {
+      "name": "Communication",
+      "parent": null
+    },
+    {
+      "name": "Innovation",
+      "parent": null
+    }
+  ],
+  "surveys": [
+    {
+      "title": "Q4 2024 Performance Review",
+      "categories": ["Performance", "Teamwork", "Leadership"],
+      "startDate": "2024-10-01T00:00:00.000Z",
+      "endDate": "2024-12-31T23:59:59.000Z",
+      "status": "active",
+      "questions": [
+        {
+          "id": "q1",
+          "text": "KPI Achievement Rate",
+          "type": "kpi",
+          "options": []
+        },
+        {
+          "id": "q2",
+          "text": "Potential for Growth",
+          "type": "scale",
+          "options": ["1", "2", "3", "4", "5"]
+        },
+        {
+          "id": "q3",
+          "text": "Culture Harmony",
+          "type": "scale",
+          "options": ["1", "2", "3", "4", "5"]
+        },
+        {
+          "id": "q4",
+          "text": "Team Effect",
+          "type": "scale",
+          "options": ["1", "2", "3", "4", "5"]
+        },
+        {
+          "id": "q5",
+          "text": "Executive Observation",
+          "type": "scale",
+          "options": ["1", "2", "3", "4", "5"]
+        },
+        {
+          "id": "q6",
+          "text": "Performance Score",
+          "type": "scale",
+          "options": ["1", "2", "3", "4", "5"]
+        },
+        {
+          "id": "q7",
+          "text": "Contribution Score",
+          "type": "scale",
+          "options": ["1", "2", "3", "4", "5"]
+        },
+        {
+          "id": "q8",
+          "text": "Potential Score",
+          "type": "scale",
+          "options": ["1", "2", "3", "4", "5"]
+        },
+        {
+          "id": "q9",
+          "text": "Keeper Score",
+          "type": "scale",
+          "options": ["1", "2", "3", "4", "5"]
+        }
+      ]
+    },
+    {
+      "title": "Annual Review 2024",
+      "categories": ["Performance", "Communication", "Innovation"],
+      "startDate": "2024-01-01T00:00:00.000Z",
+      "endDate": "2024-12-31T23:59:59.000Z",
+      "status": "active",
+      "questions": [
+        {
+          "id": "q1",
+          "text": "KPI Achievement Rate",
+          "type": "kpi",
+          "options": []
+        },
+        {
+          "id": "q2",
+          "text": "Potential for Growth",
+          "type": "scale",
+          "options": ["1", "2", "3", "4", "5"]
+        },
+        {
+          "id": "q3",
+          "text": "Culture Harmony",
+          "type": "scale",
+          "options": ["1", "2", "3", "4", "5"]
+        },
+        {
+          "id": "q4",
+          "text": "Team Effect",
+          "type": "scale",
+          "options": ["1", "2", "3", "4", "5"]
+        },
+        {
+          "id": "q5",
+          "text": "Executive Observation",
+          "type": "scale",
+          "options": ["1", "2", "3", "4", "5"]
+        },
+        {
+          "id": "q6",
+          "text": "Performance Score",
+          "type": "scale",
+          "options": ["1", "2", "3", "4", "5"]
+        },
+        {
+          "id": "q7",
+          "text": "Contribution Score",
+          "type": "scale",
+          "options": ["1", "2", "3", "4", "5"]
+        },
+        {
+          "id": "q8",
+          "text": "Potential Score",
+          "type": "scale",
+          "options": ["1", "2", "3", "4", "5"]
+        },
+        {
+          "id": "q9",
+          "text": "Keeper Score",
+          "type": "scale",
+          "options": ["1", "2", "3", "4", "5"]
+        }
+      ]
+    }
+  ],
+  "responses": [
+    {
+      "survey": "SURVEY_ID_1",
+      "employee": "USER_ID_1",
+      "answers": [
+        { "questionId": "q1", "value": 85 },
+        { "questionId": "q2", "value": 4 },
+        { "questionId": "q3", "value": 5 },
+        { "questionId": "q4", "value": 4 },
+        { "questionId": "q5", "value": 4 },
+        { "questionId": "q6", "value": 4 },
+        { "questionId": "q7", "value": 5 },
+        { "questionId": "q8", "value": 4 },
+        { "questionId": "q9", "value": 4 }
+      ],
+      "status": "submitted",
+      "submittedAt": "2024-12-15T10:30:00.000Z"
+    },
+    {
+      "survey": "SURVEY_ID_1",
+      "employee": "USER_ID_2",
+      "answers": [
+        { "questionId": "q1", "value": 92 },
+        { "questionId": "q2", "value": 5 },
+        { "questionId": "q3", "value": 4 },
+        { "questionId": "q4", "value": 5 },
+        { "questionId": "q5", "value": 5 },
+        { "questionId": "q6", "value": 5 },
+        { "questionId": "q7", "value": 4 },
+        { "questionId": "q8", "value": 5 },
+        { "questionId": "q9", "value": 5 }
+      ],
+      "status": "submitted",
+      "submittedAt": "2024-12-16T14:20:00.000Z"
+    },
+    {
+      "survey": "SURVEY_ID_1",
+      "employee": "USER_ID_3",
+      "answers": [
+        { "questionId": "q1", "value": 78 },
+        { "questionId": "q2", "value": 3 },
+        { "questionId": "q3", "value": 4 },
+        { "questionId": "q4", "value": 3 },
+        { "questionId": "q5", "value": 3 },
+        { "questionId": "q6", "value": 3 },
+        { "questionId": "q7", "value": 4 },
+        { "questionId": "q8", "value": 3 },
+        { "questionId": "q9", "value": 3 }
+      ],
+      "status": "submitted",
+      "submittedAt": "2024-12-17T09:15:00.000Z"
+    },
+    {
+      "survey": "SURVEY_ID_1",
+      "employee": "USER_ID_4",
+      "answers": [
+        { "questionId": "q1", "value": 88 },
+        { "questionId": "q2", "value": 4 },
+        { "questionId": "q3", "value": 5 },
+        { "questionId": "q4", "value": 4 },
+        { "questionId": "q5", "value": 4 },
+        { "questionId": "q6", "value": 4 },
+        { "questionId": "q7", "value": 5 },
+        { "questionId": "q8", "value": 4 },
+        { "questionId": "q9", "value": 4 }
+      ],
+      "status": "submitted",
+      "submittedAt": "2024-12-18T11:45:00.000Z"
+    },
+    {
+      "survey": "SURVEY_ID_1",
+      "employee": "USER_ID_5",
+      "answers": [
+        { "questionId": "q1", "value": 95 },
+        { "questionId": "q2", "value": 5 },
+        { "questionId": "q3", "value": 5 },
+        { "questionId": "q4", "value": 5 },
+        { "questionId": "q5", "value": 5 },
+        { "questionId": "q6", "value": 5 },
+        { "questionId": "q7", "value": 5 },
+        { "questionId": "q8", "value": 5 },
+        { "questionId": "q9", "value": 5 }
+      ],
+      "status": "submitted",
+      "submittedAt": "2024-12-19T16:00:00.000Z"
+    },
+    {
+      "survey": "SURVEY_ID_2",
+      "employee": "USER_ID_1",
+      "answers": [
+        { "questionId": "q1", "value": 90 },
+        { "questionId": "q2", "value": 4 },
+        { "questionId": "q3", "value": 4 },
+        { "questionId": "q4", "value": 5 },
+        { "questionId": "q5", "value": 4 },
+        { "questionId": "q6", "value": 4 },
+        { "questionId": "q7", "value": 5 },
+        { "questionId": "q8", "value": 4 },
+        { "questionId": "q9", "value": 4 }
+      ],
+      "status": "submitted",
+      "submittedAt": "2024-12-10T13:30:00.000Z"
+    },
+    {
+      "survey": "SURVEY_ID_2",
+      "employee": "USER_ID_2",
+      "answers": [
+        { "questionId": "q1", "value": 87 },
+        { "questionId": "q2", "value": 5 },
+        { "questionId": "q3", "value": 5 },
+        { "questionId": "q4", "value": 4 },
+        { "questionId": "q5", "value": 5 },
+        { "questionId": "q6", "value": 5 },
+        { "questionId": "q7", "value": 4 },
+        { "questionId": "q8", "value": 5 },
+        { "questionId": "q9", "value": 5 }
+      ],
+      "status": "submitted",
+      "submittedAt": "2024-12-11T15:20:00.000Z"
+    }
+  ]
+}
+

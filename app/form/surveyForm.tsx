@@ -1,21 +1,51 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Survey, useMockData, formatDate } from '../hooks/useMockData';
+import api from '../utils/api';
+import { useUser } from '../context/UserContext';
+import { Survey } from '../types/survey';
+import { Category } from '../types/category';
+import { Subcategory } from '../types/subcategory';
 import './surveyForm.css';
 import '../components/buttons.css';
 
 interface SurveyFormProps {
     survey: Survey;
     onClose: () => void;
-    onSubmit: (survey: Survey, status: "Submitted" | "Draft") => void;
+    onSubmit: (survey: Survey, status: "Submitted" | "Draft", answers: any[], selectedId?: string) => void;
+}
+
+interface CategoryWithSubcategories extends Category {
+    subcategories: Subcategory[];
+}
+
+interface Teammate {
+    _id: string;
+    id?: string;
+    name: string;
+    email: string;
+    department?: string;
+    role?: string;
 }
 
 export default function SurveyForm({ survey, onClose, onSubmit }: SurveyFormProps) {
-    const { categoriesWithSubcategories, user } = useMockData();
-    const categories = survey.categories;
-    const [errors, setErrors] = useState<{ ratings?: string }>({});
+    const { user, token } = useUser();
+    const [categoryList, setCategoryList] = useState<Category[]>([]);
+    const [categoriesWithSubcategories, setCategoriesWithSubcategories] = useState<CategoryWithSubcategories[]>([]);
+    const surveyCategories = survey.categories;
+    const [errors, setErrors] = useState<{ ratings?: string; teammate?: string; manager?: string }>({});
     const [ratings, setRatings] = useState<{ [key: string]: number }>({});
+    const [loadingSubcategories, setLoadingSubcategories] = useState(true);
+    
+    // Teammate/Manager selection states
+    const isTeammateSurvey = survey.title?.toLowerCase().includes('takım arkadaşı') || survey.surveyName?.toLowerCase().includes('takım arkadaşı');
+    const isManagerSurvey = survey.title?.toLowerCase().includes('yönetici') || survey.surveyName?.toLowerCase().includes('yönetici');
+    const [teammates, setTeammates] = useState<Teammate[]>([]);
+    const [managers, setManagers] = useState<Teammate[]>([]);
+    const [selectedTeammateId, setSelectedTeammateId] = useState<string>('');
+    const [selectedManagerId, setSelectedManagerId] = useState<string>('');
+    const [loadingTeammates, setLoadingTeammates] = useState(false);
+    const [loadingManagers, setLoadingManagers] = useState(false);
 
     //--------------Error Handling--------------------------
     useEffect(() => {
@@ -28,16 +58,17 @@ export default function SurveyForm({ survey, onClose, onSubmit }: SurveyFormProp
     }, [errors]);
 
     //--------------Rating Change Handling--------------------------
-    const handleRatingChange = (category: string, subcategory: string, rating: number) => { // Runs every single time a user clicks a radio button to select a rating for a subcategory
-        const key = `${category}-${subcategory}`; // Ex: "Culture Harmony-Collaboration"
+    const handleRatingChange = (subcategoryId: string, rating: number) => {
         setRatings(prevRatings => {
-            const newRatings = { ...prevRatings, [key]: rating };
+            const newRatings = { ...prevRatings, [subcategoryId]: rating };
 
-            const totalSubcategories = survey.categories.reduce((acc, catName) => { // Calculates the total number of subcategories in the survey
-                const category = categoriesWithSubcategories.find(c => c.name === catName);
-                return acc + (category ? category.subcategories.length : 0);
-            }, 0);
-            if (Object.keys(newRatings).length === totalSubcategories) { // If the number of ratings is equal to the total number of subcategories means the user has rated all subcategories
+            // Calculate total subcategories from all categories
+            const totalSubcategories = categoriesWithSubcategories.reduce(
+                (total, cat) => total + cat.subcategories.length, 
+                0
+            );
+            
+            if (Object.keys(newRatings).length === totalSubcategories) {
                 setErrors(prevErrors => {
                     const { ratings, ...rest } = prevErrors;
                     return rest;
@@ -47,40 +78,236 @@ export default function SurveyForm({ survey, onClose, onSubmit }: SurveyFormProp
         });
     };
     
+    // Fetch categories from backend
+    useEffect(() => {
+        const fetchCategories = async () => {
+            if (!token) return;
+            try {
+                const res = await api.get<Category[]>("/categories", {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                setCategoryList(res.data);
+            } catch (err) {
+                console.error("Error fetching categories:", err);
+            }
+        };
+        fetchCategories();
+    }, [token]);
+
+    // Fetch subcategories for each category in the survey
+    useEffect(() => {
+        const fetchSubcategories = async () => {
+            if (!token || !categoryList.length || !surveyCategories.length) {
+                setLoadingSubcategories(false);
+                return;
+            }
+
+            try {
+                setLoadingSubcategories(true);
+                const categoriesWithSubs: CategoryWithSubcategories[] = [];
+
+                // For each category in the survey, find the category object and fetch its subcategories
+                for (const categoryNameOrId of surveyCategories) {
+                    // Find category by name or ID
+                    const category = categoryList.find(
+                        cat => cat.name === categoryNameOrId || cat._id === categoryNameOrId
+                    );
+
+                    if (category) {
+                        try {
+                            // Fetch subcategories for this category
+                            const subcategoriesRes = await api.get<Subcategory[]>(
+                                `/subcategories/category/${category._id}`,
+                                { headers: { Authorization: `Bearer ${token}` } }
+                            );
+                            
+                            categoriesWithSubs.push({
+                                ...category,
+                                subcategories: subcategoriesRes.data || []
+                            });
+                        } catch (err) {
+                            console.error(`Error fetching subcategories for category ${category.name}:`, err);
+                            // Add category with empty subcategories array
+                            categoriesWithSubs.push({
+                                ...category,
+                                subcategories: []
+                            });
+                        }
+                    }
+                }
+
+                setCategoriesWithSubcategories(categoriesWithSubs);
+            } catch (err) {
+                console.error("Error fetching subcategories:", err);
+            } finally {
+                setLoadingSubcategories(false);
+            }
+        };
+
+        fetchSubcategories();
+    }, [token, categoryList, surveyCategories]);
+
+    // Fetch teammates for "takım arkadaşı" surveys
+    useEffect(() => {
+        const fetchTeammates = async () => {
+            if (!isTeammateSurvey || !token || !user) return;
+            
+            try {
+                setLoadingTeammates(true);
+                const res = await api.get<Teammate[]>("/users?forEvaluation=true", {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                
+                // Filter teammates: same department, exclude self, employee/manager roles
+                const allUsers = res.data || [];
+                const userDepartment = user.department || (user as any)?.department;
+                
+                // Debug logging
+                console.log("User department:", userDepartment);
+                console.log("All users from API:", allUsers);
+                console.log("Users with departments:", allUsers.map((u: Teammate) => ({ 
+                    name: u.name, 
+                    department: u.department, 
+                    role: u.role 
+                })));
+                
+                const filtered = allUsers.filter((u: Teammate) => {
+                    const userId = (user as any)?.id?.toString() || (user as any)?._id?.toString();
+                    const uId = u._id?.toString() || u.id?.toString();
+                    
+                    // Normalize department strings (trim, lowercase for comparison)
+                    const userDept = (userDepartment || '').toString().trim().toLowerCase();
+                    const teammateDept = (u.department || '').toString().trim().toLowerCase();
+                    
+                    const isSameDepartment = userDept === teammateDept && userDept !== '';
+                    const isNotSelf = uId !== userId;
+                    const isValidRole = u.role === 'employee' || u.role === 'manager';
+                    
+                    return isSameDepartment && isNotSelf && isValidRole;
+                });
+                
+                console.log("Filtered teammates:", filtered);
+                setTeammates(filtered);
+            } catch (err) {
+                console.error("Error fetching teammates:", err);
+                setTeammates([]);
+            } finally {
+                setLoadingTeammates(false);
+            }
+        };
+        
+        fetchTeammates();
+    }, [isTeammateSurvey, token, user]);
+
+    // Fetch managers for "yönetici" surveys
+    useEffect(() => {
+        const fetchManagers = async () => {
+            if (!isManagerSurvey || !token || !user) return;
+            
+            try {
+                setLoadingManagers(true);
+                const res = await api.get<Teammate[]>("/users?forEvaluation=true", {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                
+                // Filter all managers from all departments
+                const allUsers = res.data || [];
+                const filtered = allUsers.filter((u: Teammate) => {
+                    // Only managers, from any department
+                    return u.role === 'manager';
+                });
+                
+                // Sort by department, then by name
+                filtered.sort((a, b) => {
+                    const deptA = a.department || '';
+                    const deptB = b.department || '';
+                    if (deptA !== deptB) {
+                        return deptA.localeCompare(deptB);
+                    }
+                    return (a.name || '').localeCompare(b.name || '');
+                });
+                
+                setManagers(filtered);
+            } catch (err) {
+                console.error("Error fetching managers:", err);
+                setManagers([]);
+            } finally {
+                setLoadingManagers(false);
+            }
+        };
+        
+        fetchManagers();
+    }, [isManagerSurvey, token, user]);
+
     //--------------Draft Handling--------------------------
     useEffect(() => {
-        const savedDraft = localStorage.getItem(`survey_draft_${survey.id}`);
-        if (savedDraft) {
-            setRatings(JSON.parse(savedDraft));
+        const surveyId = survey._id || survey.id;
+        if (surveyId) {
+            const savedDraft = localStorage.getItem(`survey_draft_${surveyId}`);
+            if (savedDraft) {
+                setRatings(JSON.parse(savedDraft));
+            }
         }
-    }, [survey.id]);
+    }, [survey._id, survey.id]);
 
     //--------------Submit Handling--------------------------
     const handleSubmit = (status: "Submitted" | "Draft") => {
-        const newErrors: { ratings?: string } = {};
+        const newErrors: { ratings?: string; teammate?: string; manager?: string } = {};
+
+        // Validate teammate/manager selection for submitted surveys
+        if (status === 'Submitted') {
+            if (isTeammateSurvey && !selectedTeammateId) {
+                newErrors.teammate = "Please select a teammate to evaluate.";
+            }
+            if (isManagerSurvey && !selectedManagerId) {
+                newErrors.manager = "Please select a manager to evaluate.";
+            }
+        }
 
         if (status === 'Draft') {   // For drafts, just save and close without validation
-            localStorage.setItem(`survey_draft_${survey.id}`, JSON.stringify(ratings));
-            onClose();
+            localStorage.setItem(`survey_draft_${survey._id || survey.id}`, JSON.stringify(ratings));
+            // Still submit as draft to backend
+            const answers = Object.entries(ratings).map(([key, value]) => ({
+                questionId: key,
+                value: value
+            }));
+            const selectedId = selectedTeammateId || selectedManagerId;
+            onSubmit(survey, status, answers, selectedId);
             return;
         }
 
         if (status === 'Submitted') {   // For completion, validate the form
-            const totalSubcategories = survey.categories.reduce((acc, catName) => {
-                const category = categoriesWithSubcategories.find(c => c.name === catName);
-                return acc + (category ? category.subcategories.length : 0);
-            }, 0);
-            if (Object.keys(ratings).length < totalSubcategories) {
-                newErrors.ratings = "Please provide a rating for all subcategories.";
+            // Calculate total subcategories
+            const totalSubcategories = categoriesWithSubcategories.reduce(
+                (total, cat) => total + cat.subcategories.length, 
+                0
+            );
+            
+            if (totalSubcategories > 0) {
+                if (Object.keys(ratings).length < totalSubcategories) {
+                    newErrors.ratings = "Please provide a rating for all questions.";
+                }
+            } else if (Object.keys(ratings).length === 0) {
+                newErrors.ratings = "Please provide at least one rating.";
             }
         }
 
         if (Object.keys(newErrors).length > 0) {
             setErrors(newErrors);
         } else {
+            // Convert ratings to answers format for backend
+            // Key is subcategory ID, value is the rating
+            const answers = Object.entries(ratings).map(([subcategoryId, value]) => {
+                return {
+                    questionId: subcategoryId, // Use subcategory ID as questionId
+                    value: value
+                };
+            });
+            
             // If submission is successful, remove any saved draft
-            localStorage.removeItem(`survey_draft_${survey.id}`);
-            onSubmit(survey, status);   // Calls the onSubmit function to submit the survey
+            localStorage.removeItem(`survey_draft_${survey._id || survey.id}`);
+            const selectedId = selectedTeammateId || selectedManagerId;
+            onSubmit(survey, status, answers, selectedId);   // Calls the onSubmit function to submit the survey
         }
     };
 
@@ -88,57 +315,167 @@ export default function SurveyForm({ survey, onClose, onSubmit }: SurveyFormProp
         <div className="form-container">
             <div className="form-content">
                 <div className="form-header">
-                    <h2 className="form-title">{survey.surveyName}</h2>
+                    <h2 className="form-title">{survey.title || survey.surveyName}</h2>
                     <button onClick={onClose} className="cancel-button-standalone">Cancel</button>
                 </div>
                 <div className="form-header-info">
                     <div>
-                        <h3>Name: <span>{user.name}</span></h3>
-                        <h3>Department: <span>{user.department}</span></h3>
-                        <h3>Email: <span>{user.email}</span></h3>
+                        <h3>Name: <span>{user?.name || 'N/A'}</span></h3>
+                        <h3>Email: <span>{user?.email || 'N/A'}</span></h3>
                     </div>
-                    <img src={user.profilePicture} alt="Profile" />
                 </div>
                 <div className="form-body">
                     <div className="dates-section">
                         <div className="start-date">
                             <h3>Start Date</h3>
-                            <p>{formatDate(survey.startDate)}</p>
+                            <p>{survey.startDate ? new Date(survey.startDate).toLocaleDateString() : 'N/A'}</p>
                         </div>
                         <div className="end-date">
                             <h3>End Date</h3>
-                            <p>{formatDate(survey.endDate)}</p>
+                            <p>{survey.endDate ? new Date(survey.endDate).toLocaleDateString() : 'N/A'}</p>
                         </div>
                     </div>
+
+                    {/* Teammate Selection for "takım arkadaşı" surveys */}
+                    {isTeammateSurvey && (
+                        <div className="teammate-selection-section">
+                            <label htmlFor="teammate-select" className="teammate-label">
+                                Select Teammate to Evaluate <span className="required-asterisk">*</span>
+                            </label>
+                            {loadingTeammates ? (
+                                <p>Loading teammates...</p>
+                            ) : teammates.length === 0 ? (
+                                <p className="error-message">No teammates found in your department.</p>
+                            ) : (
+                                <select
+                                    id="teammate-select"
+                                    value={selectedTeammateId}
+                                    onChange={(e) => setSelectedTeammateId(e.target.value)}
+                                    className="teammate-select"
+                                >
+                                    <option value="">-- Select Teammate --</option>
+                                    {teammates.map((teammate) => (
+                                        <option key={teammate._id || teammate.id} value={teammate._id || teammate.id}>
+                                            {teammate.name} ({teammate.email}) - {teammate.department || 'N/A'}
+                                        </option>
+                                    ))}
+                                </select>
+                            )}
+                            {errors.teammate && <p className="error-message">{errors.teammate}</p>}
+                        </div>
+                    )}
+
+                    {/* Manager Selection for "yönetici" surveys */}
+                    {isManagerSurvey && (
+                        <div className="teammate-selection-section">
+                            <label htmlFor="manager-select" className="teammate-label">
+                                Select Manager to Evaluate <span className="required-asterisk">*</span>
+                            </label>
+                            {loadingManagers ? (
+                                <p>Loading managers...</p>
+                            ) : managers.length === 0 ? (
+                                <p className="error-message">No managers found.</p>
+                            ) : (
+                                <select
+                                    id="manager-select"
+                                    value={selectedManagerId}
+                                    onChange={(e) => setSelectedManagerId(e.target.value)}
+                                    className="teammate-select"
+                                >
+                                    <option value="">-- Select Manager --</option>
+                                    {managers.map((manager) => (
+                                        <option key={manager._id || manager.id} value={manager._id || manager.id}>
+                                            {manager.name} ({manager.email}) - {manager.department || 'N/A'}
+                                        </option>
+                                    ))}
+                                </select>
+                            )}
+                            {errors.manager && <p className="error-message">{errors.manager}</p>}
+                        </div>
+                    )}
+
                     <div className="categories-section">
-                        <div className="categories-container">
-                            {categories.map((category, index) => (
-                                <div key={index} className="category-box">
-                                    <h4 className="category-title">{category}</h4>
-                                    <div className="subcategories-list">
-                                        {(categoriesWithSubcategories.find(c => c.name === category)?.subcategories || []).map((subcategory) => (
-                                            <div key={subcategory.id} className="subcategory-item">
-                                                <p className="subcategory-name">{subcategory.name}</p>
-                                                <div className="rating-group">
-                                                    {[1, 2, 3, 4, 5].map(rating => (
-                                                        <label key={rating} className="rating-label">
-                                                            <input
-                                                                type="radio"
-                                                                name={`${category}-${subcategory.name}`}
-                                                                value={rating}
-                                                                checked={ratings[`${category}-${subcategory.name}`] === rating}
-                                                                onChange={() => handleRatingChange(category, subcategory.name, rating)}
-                                                            />
-                                                            {rating}
-                                                        </label>
-                                                    ))}
+                        {loadingSubcategories ? (
+                            <div style={{ padding: '2rem', textAlign: 'center' }}>
+                                <p>Loading questions...</p>
+                            </div>
+                        ) : (
+                            <div className="categories-container">
+                                {categoriesWithSubcategories.length > 0 ? (
+                                    categoriesWithSubcategories.map((category) => (
+                                        <div key={category._id} className="category-box">
+                                            <h4 className="category-title">{category.name}</h4>
+                                            {category.subcategories.length > 0 ? (
+                                                <div className="subcategories-list">
+                                                    {category.subcategories.map((subcategory) => {
+                                                        const minRating = subcategory.minRating || 1;
+                                                        const maxRating = subcategory.maxRating || 5;
+                                                        const ratingOptions = [];
+                                                        for (let i = minRating; i <= maxRating; i++) {
+                                                            ratingOptions.push(i);
+                                                        }
+                                                        
+                                                        return (
+                                                            <div key={subcategory._id} className="subcategory-item">
+                                                                <p className="subcategory-name">{subcategory.name}</p>
+                                                                <div className="rating-group">
+                                                                    {ratingOptions.map(rating => (
+                                                                        <label key={rating} className="rating-label">
+                                                                            <input
+                                                                                type="radio"
+                                                                                name={`subcategory-${subcategory._id}`}
+                                                                                value={rating}
+                                                                                checked={ratings[subcategory._id] === rating}
+                                                                                onChange={() => handleRatingChange(subcategory._id, rating)}
+                                                                            />
+                                                                            {rating}
+                                                                        </label>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            ) : (
+                                                <p style={{ color: '#71717a', padding: '1rem' }}>
+                                                    No questions (subcategories) available for this category.
+                                                </p>
+                                            )}
+                                        </div>
+                                    ))
+                                ) : survey.questions && survey.questions.length > 0 ? (
+                                    // Fallback: use survey questions if no categories with subcategories
+                                    survey.questions.map((question, index) => (
+                                        <div key={question.id || index} className="category-box">
+                                            <h4 className="category-title">{question.text}</h4>
+                                            <div className="subcategories-list">
+                                                <div className="subcategory-item">
+                                                    <p className="subcategory-name">{question.text}</p>
+                                                    <div className="rating-group">
+                                                        {[1, 2, 3, 4, 5].map(rating => (
+                                                            <label key={rating} className="rating-label">
+                                                                <input
+                                                                    type="radio"
+                                                                    name={`question-${question.id || index}`}
+                                                                    value={rating}
+                                                                    checked={ratings[`question-${question.id || index}`] === rating}
+                                                                    onChange={() => handleRatingChange(`question-${question.id || index}`, rating)}
+                                                                />
+                                                                {rating}
+                                                            </label>
+                                                        ))}
+                                                    </div>
                                                 </div>
                                             </div>
-                                        ))}
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div style={{ padding: '2rem', textAlign: 'center' }}>
+                                        <p>No questions available for this survey.</p>
                                     </div>
-                                </div>
-                            ))}
-                        </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
                 {errors.ratings && <p className="error-message ratings-error">{errors.ratings}</p>}

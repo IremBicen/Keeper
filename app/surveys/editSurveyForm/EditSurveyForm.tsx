@@ -1,9 +1,12 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import api from '../../utils/api';
+import { useUser } from '../../context/UserContext';
+import { Category } from '../../types/category';
 import './EditSurveyForm.css';
 import "../../components/buttons.css";
-import { Survey } from '../../hooks/useMockData';
+import { Survey } from '../../types/survey';
 
 interface EditSurveyFormProps {
     survey: Survey;
@@ -16,26 +19,75 @@ interface FormErrors {
     missingCategory?: string;
 }
 
-const initialCategories = [ // Dummy data for categories that will be replaced with the actual categories
-  { id: 1, name: "Potential" },
-  { id: 2, name: "Culture Harmony" },
-  { id: 3, name: "Team Effect" },
-  { id: 4, name: "Executive Observation" },
-];
+interface User {
+  _id: string;
+  name: string;
+  email: string;
+  department?: string;
+}
 
 export default function EditSurveyForm({ survey, onClose, onSave }: EditSurveyFormProps) {
-  const [surveyName, setSurveyName] = useState(survey.surveyName);
-  const [selectedCategories, setSelectedCategories] = useState<number[]>([]);
-  const [deadline, setDeadline] = useState(survey.endDate);
+  const { token, user } = useUser();
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [departments, setDepartments] = useState<string[]>([]);
+  const [surveyName, setSurveyName] = useState(survey.title || survey.surveyName || '');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [deadline, setDeadline] = useState(survey.endDate ? (typeof survey.endDate === 'string' ? survey.endDate : new Date(survey.endDate).toISOString().split('T')[0]) : '');
+  const [assignmentType, setAssignmentType] = useState<'all' | 'admins' | 'managers' | 'employees' | 'department' | 'specific'>(survey.assignmentType || 'all');
+  const [selectedDepartments, setSelectedDepartments] = useState<string[]>(survey.assignedDepartments || []);
+  const [selectedUsers, setSelectedUsers] = useState<string[]>(
+    survey.assignedUsers 
+      ? survey.assignedUsers.map((id: any) => typeof id === 'string' ? id : id.toString())
+      : []
+  );
   const [errors, setErrors] = useState<FormErrors>({});
+
+  // Fetch categories from backend
+  useEffect(() => {
+    const fetchCategories = async () => {
+      if (!token) return;
+      try {
+        const res = await api.get<Category[]>("/categories", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setCategories(res.data);
+      } catch (err) {
+        console.error("Error fetching categories:", err);
+      }
+    };
+    fetchCategories();
+  }, [token]);
+
+  // Fetch users and departments (admin only)
+  useEffect(() => {
+    const fetchUsers = async () => {
+      if (!token || user?.role !== 'admin') return;
+      try {
+        const res = await api.get<User[]>("/users", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setUsers(res.data);
+        
+        // Extract unique departments
+        const uniqueDepartments = Array.from(
+          new Set(res.data.map(u => u.department).filter(Boolean) as string[])
+        );
+        setDepartments(uniqueDepartments);
+      } catch (err) {
+        console.error("Error fetching users:", err);
+      }
+    };
+    fetchUsers();
+  }, [token, user]);
 
   useEffect(() => { // Getting the category ids from the survey category
     const categoryIds = survey.categories.map(name => {
-        const category = initialCategories.find(c => c.name === name);
-        return category ? category.id : null;
-    }).filter((id): id is number => id !== null);
+        const category = categories.find(c => c.name === name);
+        return category ? category._id : null;
+    }).filter((id): id is string => id !== null);
     setSelectedCategories(categoryIds);
-  }, [survey]);
+  }, [survey, categories]);
 
   useEffect(() => {
     if (Object.keys(errors).length > 0) { // If there are any errors, show the error message for 5 seconds
@@ -46,8 +98,8 @@ export default function EditSurveyForm({ survey, onClose, onSave }: EditSurveyFo
     }
   }, [errors]);
 
-  const handleDragStart = (e: React.DragEvent<HTMLDivElement>, categoryId: number) => {
-    e.dataTransfer.setData("categoryId", categoryId.toString());
+  const handleDragStart = (e: React.DragEvent<HTMLDivElement>, categoryId: string) => {
+    e.dataTransfer.setData("categoryId", categoryId);
   };
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
@@ -56,13 +108,13 @@ export default function EditSurveyForm({ survey, onClose, onSave }: EditSurveyFo
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    const categoryId = parseInt(e.dataTransfer.getData("categoryId"), 10);
+    const categoryId = e.dataTransfer.getData("categoryId");
     if (categoryId && !selectedCategories.includes(categoryId)) {
       setSelectedCategories(prev => [...prev, categoryId]);
     }
   };
 
-  const handleRemoveCategory = (categoryId: number) => {
+  const handleRemoveCategory = (categoryId: string) => {
     setSelectedCategories(prev => prev.filter(id => id !== categoryId));
   };
   
@@ -83,14 +135,30 @@ export default function EditSurveyForm({ survey, onClose, onSave }: EditSurveyFo
     }
 
     const categoryNames = selectedCategories.map(id => {
-        return initialCategories.find(c => c.id === id)?.name || "";
-    });
+        return categories.find(c => c._id === id)?.name || "";
+    }).filter(Boolean);
 
-    const surveyData = {
+    // Build assignment data based on assignment type
+    let assignmentData: any = {
+      assignmentType,
+    };
+
+    if (assignmentType === 'department') {
+      assignmentData.assignedDepartments = selectedDepartments;
+    } else if (assignmentType === 'specific') {
+      assignmentData.assignedUsers = selectedUsers;
+    } else if (assignmentType === 'managers') {
+      assignmentData.assignedRoles = ['manager'];
+    } else if (assignmentType === 'employees') {
+      assignmentData.assignedRoles = ['employee'];
+    }
+
+    const surveyData: Survey = {
         ...survey,
-        surveyName: surveyName,
+        title: surveyName,
         categories: categoryNames,
         endDate: deadline,
+        ...assignmentData,
     };
     onSave(surveyData);
     onClose();
@@ -131,7 +199,7 @@ export default function EditSurveyForm({ survey, onClose, onSave }: EditSurveyFo
                     <div className="drop-zone">
                         {selectedCategories.length > 0 ? (
                             selectedCategories.map(id => {
-                                const category = initialCategories.find(c => c.id === id);
+                                const category = categories.find(c => c._id === id);
                                 return (
                                     <div 
                                         key={id} 
@@ -148,16 +216,131 @@ export default function EditSurveyForm({ survey, onClose, onSave }: EditSurveyFo
                     </div>
                     {errors.missingCategory && <p className="error-message">{errors.missingCategory}</p>}
                  </div>
+                 
+                 {/* Assignment Section */}
+                 <div className="survey-details assignment-details">
+                    <label className="assignment-label">Survey Assignment *</label>
+                    <div className="assignment-section">
+                        <div className="assignment-options">
+                            <label className="radio-label">
+                                <input
+                                    type="radio"
+                                    name="assignmentType"
+                                    value="all"
+                                    checked={assignmentType === 'all'}
+                                    onChange={(e) => setAssignmentType(e.target.value as any)}
+                                />
+                                <span>All Users</span>
+                            </label>
+                            <label className="radio-label">
+                                <input
+                                    type="radio"
+                                    name="assignmentType"
+                                    value="managers"
+                                    checked={assignmentType === 'managers'}
+                                    onChange={(e) => setAssignmentType(e.target.value as any)}
+                                />
+                                <span>Only Managers</span>
+                            </label>
+                            <label className="radio-label">
+                                <input
+                                    type="radio"
+                                    name="assignmentType"
+                                    value="employees"
+                                    checked={assignmentType === 'employees'}
+                                    onChange={(e) => setAssignmentType(e.target.value as any)}
+                                />
+                                <span>Only Employees</span>
+                            </label>
+                            <label className="radio-label">
+                                <input
+                                    type="radio"
+                                    name="assignmentType"
+                                    value="department"
+                                    checked={assignmentType === 'department'}
+                                    onChange={(e) => setAssignmentType(e.target.value as any)}
+                                />
+                                <span>Specific Department(s)</span>
+                            </label>
+                            <label className="radio-label">
+                                <input
+                                    type="radio"
+                                    name="assignmentType"
+                                    value="specific"
+                                    checked={assignmentType === 'specific'}
+                                    onChange={(e) => setAssignmentType(e.target.value as any)}
+                                />
+                                <span>Specific Individual(s)</span>
+                            </label>
+                        </div>
+                        
+                        {/* Department Selection */}
+                        {assignmentType === 'department' && (
+                            <div className="assignment-selector">
+                                <label>Select Departments:</label>
+                                <div className="multi-select-container">
+                                    {departments.map(dept => (
+                                        <label key={dept} className="checkbox-label">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedDepartments.includes(dept)}
+                                                onChange={(e) => {
+                                                    if (e.target.checked) {
+                                                        setSelectedDepartments([...selectedDepartments, dept]);
+                                                    } else {
+                                                        setSelectedDepartments(selectedDepartments.filter(d => d !== dept));
+                                                    }
+                                                }}
+                                            />
+                                            <span>{dept}</span>
+                                        </label>
+                                    ))}
+                                    {departments.length === 0 && (
+                                        <p className="info-text">No departments found. Add departments to user profiles first.</p>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                        
+                        {/* User Selection */}
+                        {assignmentType === 'specific' && (
+                            <div className="assignment-selector">
+                                <label>Select Users:</label>
+                                <div className="multi-select-container">
+                                    {users.map(user => (
+                                        <label key={user._id} className="checkbox-label">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedUsers.includes(user._id)}
+                                                onChange={(e) => {
+                                                    if (e.target.checked) {
+                                                        setSelectedUsers([...selectedUsers, user._id]);
+                                                    } else {
+                                                        setSelectedUsers(selectedUsers.filter(id => id !== user._id));
+                                                    }
+                                                }}
+                                            />
+                                            <span>{user.name} ({user.email})</span>
+                                        </label>
+                                    ))}
+                                    {users.length === 0 && (
+                                        <p className="info-text">No users found.</p>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                 </div>
               </div>
             <div className="right-side">
                 <h3>Category Types</h3>
                 <div className="category-list">
-                {initialCategories.map(category => (
+                {categories.map(category => (
                     <div
-                        key={category.id}
-                        className={`category-item draggable ${selectedCategories.includes(category.id) ? 'selected' : ''}`} // If the category is selected, add the selected class for styling
-                        draggable={!selectedCategories.includes(category.id)}
-                        onDragStart={(e) => handleDragStart(e, category.id)}
+                        key={category._id}
+                        className={`category-item draggable ${selectedCategories.includes(category._id) ? 'selected' : ''}`} // If the category is selected, add the selected class for styling
+                        draggable={!selectedCategories.includes(category._id)}
+                        onDragStart={(e) => handleDragStart(e, category._id)}
                     >
                       {category.name}
                     </div>

@@ -3,6 +3,7 @@ import {
   HiOutlineClipboard, // Surveys
   HiOutlineUsers, // Users
   HiOutlineChartBar, // Results
+  HiOutlineDocumentText, // Evaluations
   HiOutlineArrowLeft,
   HiOutlineArrowRight,
   HiOutlineArrowRightOnRectangle, // Logout
@@ -12,6 +13,7 @@ export const DashboardIcon = HiOutlineChartPie;
 export const SurveysIcon = HiOutlineClipboard;
 export const UsersIcon = HiOutlineUsers;
 export const ResultsIcon = HiOutlineChartBar;
+export const EvaluationsIcon = HiOutlineDocumentText;
 export const LogoutIcon = HiOutlineArrowRightOnRectangle;
 export const ArrowLeftIcon = HiOutlineArrowLeft;
 export const ArrowRightIcon = HiOutlineArrowRight;

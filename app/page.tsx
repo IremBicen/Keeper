@@ -1,181 +1,245 @@
 "use client";
 
-import "./Dashboard.css";
 import { useUser } from "./context/UserContext";
-import { useState, useEffect } from "react";
-import Notification from "./components/notification/Notification";
-import { useMockData, StatBoxProps } from "./hooks/useMockData"; // Import StatBoxProps
+import { useEffect, useState } from "react";
+import api from "./utils/api";
+import { useRouter } from "next/navigation";
 import { Sidebar } from "./components/sidebar/Sidebar";
+import "./Dashboard.css";
 import "./components/table.css";
 import "./components/buttons.css";
-import { ThemeToggleButton } from "./components/ThemeToggleButton/ThemeToggleButton";
 
-function StatBox({ title, count }: StatBoxProps) {  // This function is used to display the statistics of the evaluations (coming from the useMockData hook)
-  return (
-    <div className="stat-box">
-      <h2 className="stat-box-title">{title}</h2>
-      <p className="stat-box-count">{count}</p>
-    </div>
-  );
-}
+export default function DashboardPage() {
+  const { user, token, logout } = useUser();
+  const router = useRouter();
+  const [surveys, setSurveys] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [responses, setResponses] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-function RoleSwitcher() {  // This function is used to switch the role of the user (manager or admin)
-  const { role, setRole } = useUser();
+  // Check authentication and redirect if needed
+  useEffect(() => {
+    const checkAuth = () => {
+      const timer = setTimeout(() => {
+        const storedUser = localStorage.getItem("user");
+        const storedToken = localStorage.getItem("token");
+        
+        if (!storedUser || !storedToken) {
+          setLoading(false);
+          router.push("/login");
+          return;
+        }
+        
+        if (!user && !token) {
+          setLoading(true);
+        } else {
+          setLoading(false);
+        }
+      }, 100);
 
-  return (
-    <div className="role-switcher">
-      <span>Current Role: <strong>{role}</strong></span>
-      <div className="role-buttons">
-        <button onClick={() => setRole('manager')} disabled={role === 'manager'}>
-          Set to Manager
-        </button>
-        <button onClick={() => setRole('admin')} disabled={role === 'admin'}>
-          Set to Admin
-        </button>
-      </div>
-    </div>
-  );
-}
+      return () => clearTimeout(timer);
+    };
 
-export default function Home() {
-  const {
-    user,
-    totalEvaluations,
-    savedEvaluations,
-    draftEvaluations,
-    recentEvaluations,
-    sortedSurveys,
-  } = useMockData();
-  const { role } = useUser();
-  const [notification, setNotification] = useState('');
+    checkAuth();
+  }, [user, token, router]);
 
-  useEffect(() => { // This is used to display the notification message that is stored in the session storage
-    const notificationMessage = sessionStorage.getItem('notification');
-    if (notificationMessage) {
-      setNotification(notificationMessage);
-      sessionStorage.removeItem('notification');
+  useEffect(() => {
+    if (!token || !user) {
+      setLoading(false);
+      return;
     }
-  }, []);
+
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const surveyRes = await api.get("/surveys");
+        // Filter out any null surveys
+        const validSurveys = (surveyRes.data || []).filter((survey: any) => survey && (survey._id || survey.id));
+        setSurveys(validSurveys);
+
+        // Fetch user's responses to check submission status
+        try {
+          const responsesRes = await api.get("/responses");
+          const userResponses = (responsesRes.data || []).filter((r: any) => {
+            if (!r.employee) return false;
+            const empId = typeof r.employee === 'string' 
+              ? r.employee 
+              : (r.employee._id?.toString() || r.employee.id?.toString() || r.employee);
+            const userId = (user as any)?.id?.toString() || (user as any)?._id?.toString();
+            return empId === userId && r.status === 'submitted';
+          });
+          setResponses(userResponses);
+        } catch (err) {
+          console.error("Error fetching responses:", err);
+          setResponses([]);
+        }
+
+        if (user?.role === "admin") {
+          const usersRes = await api.get("/users");
+          // Filter out any null users
+          const validUsers = (usersRes.data || []).filter((user: any) => user && (user._id || user.id));
+          setUsers(validUsers);
+        }
+      } catch (err: any) {
+        console.error("❌ Error fetching data:", err);
+        const errorMessage = err.response?.data?.message || err.message || "Failed to fetch data";
+        setError(errorMessage);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [token, user]);
+
+  // Show loading while checking auth or redirecting
+  if (loading || !user || !token) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        flexDirection: 'column',
+        gap: '1rem'
+      }}>
+        <p>Loading...</p>
+        {!user && !token && (
+          <button 
+            onClick={() => router.push("/login")}
+            className="btn btn-light"
+          >
+            Go to Login
+          </button>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="dashboard-container">
-        <Sidebar />
-        <main className="dashboard-main">
-
-          <RoleSwitcher />  {/* This is the role switcher button that will be shown to the user */} 
-
-          {notification && <Notification message={notification} onClose={() => setNotification('')} />}
-          <header className="dashboard-header">
-            <h1 className="dashboard-title">My Dashboard</h1>
-            <div className="dashboard-user-area">
-                <div className="dashboard-user-box">
-                  <span>{user.name}</span>
-                </div>
-                <ThemeToggleButton />
-            </div>
+      <Sidebar />
+      <main className="dashboard-main">
+        <header className="dashboard-header">
+          <h1 className="dashboard-title">Dashboard ({user.role})</h1>
         </header>
 
-        {/* Statistics */}
+        {error && (
+          <div className="box-container" style={{ margin: '1rem 2.5rem', backgroundColor: '#fee', borderColor: '#fcc', color: '#c33' }}>
+            <strong>Error:</strong> {error}
+            <br />
+            <small>Check browser console (F12) for more details.</small>
+          </div>
+        )}
+
+        {/* Stats Grid */}
         <div className="stats-grid">
-          <StatBox title="Total Evaluations" count={totalEvaluations} />
-          <StatBox title="Submitted Evaluations" count={savedEvaluations} />
-          <StatBox title="Draft Evaluations" count={draftEvaluations} />
+          <div className="stat-box">
+            <div className="stat-box-title">Total Surveys</div>
+            <div className="stat-box-count">{surveys.length}</div>
+          </div>
+          {user.role === "admin" && (
+            <div className="stat-box">
+              <div className="stat-box-title">Total Users</div>
+              <div className="stat-box-count">{users.length}</div>
+            </div>
+          )}
+          <div className="stat-box">
+            <div className="stat-box-title">Active Surveys</div>
+            <div className="stat-box-count">
+              {surveys.filter((s: any) => s.status === "active" || s.status === "Active").length}
+            </div>
+          </div>
         </div>
 
-        {/* My Surveys - This part going to be different for users with different roles*/}
-        {/* If the user is a manager, they can see the my surveys table */}
-        {role === 'manager' && (
-          <div className="box-container">
-            <h2 className="box-title">My Surveys</h2>
+        {/* Recent Surveys */}
+        <div className="box-container">
+          <h2 className="box-title">My Surveys</h2>
+          {loading ? (
+            <p>Loading surveys...</p>
+          ) : surveys.length === 0 ? (
+            <p style={{ color: '#71717a' }}>No surveys found. Create surveys to see them here.</p>
+          ) : (
             <table className="table-container">
-              <thead className="table-header">
+              <thead>
                 <tr>
                   <th>Survey Name</th>
-                  <th>Categories</th>
+                  <th>Status</th>
+                  <th>Submission</th>
                   <th>Start Date</th>
                   <th>End Date</th>
-                  <th>Status</th>
-                  <th>Submission Status</th>
-                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
-                {sortedSurveys.map((survey) => {
-                  const userEvaluation = recentEvaluations.find(e => e.surveyName === survey.surveyName);
-                  const submissionStatus = userEvaluation ? userEvaluation.submission_status : 'Not Started';
-                  const isSubmitted = submissionStatus === 'Submitted';
-
+                {surveys.slice(0, 5).map((survey: any) => {
+                  const surveyId = survey._id || survey.id;
+                  const isFilled = responses.some((r: any) => {
+                    const respSurveyId = typeof r.survey === 'string' 
+                      ? r.survey 
+                      : (r.survey?._id?.toString() || r.survey?.id?.toString());
+                    return respSurveyId === surveyId;
+                  });
+                  
                   return (
-                    <tr key={survey.id}>
-                      <td>{survey.surveyName}</td>
-                      <td className="categories-cell">
-                        {survey.categories.map((category, catIndex) => (
-                          <span key={catIndex} className="category-tag">{category}{catIndex < survey.categories.length - 1 ? ', ' : ''}</span>  // Adds a comma between categories except the last one
-                        ))}
-                      </td>
-                      <td>{survey.startDate}</td>
-                      <td>{survey.endDate}</td>
+                    <tr key={surveyId}>
+                      <td>{survey.title || survey.surveyName}</td>
                       <td>
-                        <span className={`status-badge status-${survey.status.toLowerCase()}`}>
-                          {survey.status}
+                        <span className={`status-badge status-${(survey.status || "not-started").toLowerCase()}`}>
+                          {survey.status || "Not Started"}
                         </span>
                       </td>
                       <td>
-                        <span className={`status-badge status-${submissionStatus.toLowerCase().replace(' ', '-')}`}>
-                          {submissionStatus}
+                        <span className={`status-badge ${isFilled ? 'status-filled' : 'status-waiting'}`}>
+                          {isFilled ? 'Filled' : 'Waiting'}
                         </span>
                       </td>
-                      <td>
-                        {survey.status === 'Active' ? ( // If the survey is active, show the join button
-                          <a
-                            href={`/form?survey=${encodeURIComponent(survey.surveyName)}`}
-                            className={`btn btn-light ${isSubmitted ? 'disabled' : ''}`}
-                            onClick={(e) => { if (isSubmitted) e.preventDefault(); }}
-                          >
-                            Join
-                          </a>
-                        ) : (
-                          <span> </span> // If the survey is not active, show a space
-                        )}
-                      </td>
+                      <td>{survey.startDate ? new Date(survey.startDate).toLocaleDateString() : "N/A"}</td>
+                      <td>{survey.endDate ? new Date(survey.endDate).toLocaleDateString() : "N/A"}</td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
+          )}
+        </div>
+
+        {/* Admin: Recent Users */}
+        {user.role === "admin" && (
+          <div className="box-container">
+            <h2 className="box-title">Users</h2>
+            {loading ? (
+              <p>Loading users...</p>
+            ) : users.length === 0 ? (
+              <p style={{ color: '#71717a' }}>No users found. Create users in the database.</p>
+            ) : (
+              <table className="table-container">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.slice(0, 5).map((u: any) => (
+                    <tr key={u._id || u.id}>
+                      <td>{u.name}</td>
+                      <td>{u.email}</td>
+                      <td>
+                        <span className={`status-badge status-${(u.role || "employee").toLowerCase()}`}>
+                          {u.role || "employee"}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         )}
-
-        {/* Recent Evaluations */}
-        <div className="box-container">
-          <h2 className="box-title">Recent Evaluations</h2>
-          <table className="table-container">
-            <thead>
-              <tr>
-                <th>Employee Name</th>
-                <th>Department</th>
-                <th>Date</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentEvaluations.map((evaluation, index) => (
-                <tr key={index}>
-                  <td>{evaluation.employeeName}</td>
-                  <td>{evaluation.department}</td>
-                  <td>{evaluation.date}</td>
-                  <td>
-                    <span
-                      className={`status-badge status-${evaluation.submission_status.toLowerCase()}`}  // Creates a specific class based on the status of the evaluation
-                    >
-                      {evaluation.submission_status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
       </main>
     </div>
   );

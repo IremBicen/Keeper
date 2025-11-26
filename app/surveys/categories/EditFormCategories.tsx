@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import './categories.css';
 import '../../components/buttons.css';
-import { Category } from "../../hooks/useMockData"; // Import the centralized Category type
+import { Category } from "../../types/category"; // Import the centralized Category type
 
 interface EditFormProps {
   category: Category;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import "./subcategories.css";
 import "../../components/table.css";
 import "../../components/buttons.css";
@@ -9,22 +9,95 @@ import AddSubcategory from "./AddSubcategory";
 import DeleteConfirmation from "../../components/deleteConfirmation/DeleteConfirmation";
 import { HiOutlineSearch } from "react-icons/hi";
 import Notification from "../../components/notification/Notification";
-import { useMockData, Subcategory } from "../../hooks/useMockData";
 import { Sidebar } from "../../components/sidebar/Sidebar";
+import api from "../../utils/api";
+import { useUser } from "../../context/UserContext";
+import { Subcategory, CategoryWithSubcategories } from "../../types/subcategory";
+import { Category } from "../../types/category";
 
 export default function SubcategoriesPage() {
-    const { 
-        categoriesWithSubcategories,
-        addSubcategory,
-        updateSubcategory,
-        deleteSubcategory,
-    } = useMockData();
+  const { token } = useUser();
+  const [categoriesWithSubcategories, setCategoriesWithSubcategories] = useState<CategoryWithSubcategories[]>([]);
+  const [loading, setLoading] = useState(true);
   const [editingSubcategory, setEditingSubcategory] = useState<(Subcategory & { categoryName: string }) | null >(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [deletingSubcategory, setDeletingSubcategory] = useState<Subcategory | null>(null);
-  const [notification, setNotification] = useState<string | null>(null); // Success message for the form
+  const [notification, setNotification] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [searchType, setSearchType] = useState<"category" | "subcategory">("category");
+
+  // Fetch categories and subcategories from backend
+  const fetchData = async () => {
+    if (!token) return;
+    try {
+      setLoading(true);
+      const [categoriesRes, subcategoriesRes] = await Promise.all([
+        api.get<Category[]>("/categories", {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        api.get<Subcategory[]>("/subcategories", {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
+
+      // Filter out any null/invalid categories and subcategories
+      const categories = (categoriesRes.data || []).filter(
+        (cat): cat is Category => !!cat && !!(cat as any)._id && !!cat.name
+      );
+      const subcategories = (subcategoriesRes.data || []).filter(
+        (sub): sub is Subcategory => !!sub && !!sub._id
+      );
+
+      // Transform data to match expected structure
+      const categoriesWithSubs: CategoryWithSubcategories[] = categories.map((category) => {
+        const categorySubs = subcategories
+          .filter((sub) => {
+            // Some subcategories may have a null/undefined category – skip them safely
+            const categoryField = (sub as any).category;
+            if (!categoryField) return false;
+            const categoryId =
+              typeof categoryField === "string"
+                ? categoryField
+                : categoryField._id;
+            return categoryId?.toString() === category._id?.toString();
+          })
+          .map((sub) => {
+            const categoryField = (sub as any).category;
+            const categoryName =
+              categoryField && typeof categoryField === "object"
+                ? categoryField.name
+                : category.name;
+
+            return {
+            ...sub,
+            id: sub._id,
+              dateAdded: sub.createdAt
+                ? new Date(sub.createdAt).toLocaleDateString()
+                : new Date().toLocaleDateString(),
+              categoryName,
+            };
+          });
+
+        return {
+          _id: category._id,
+          id: category._id,
+          name: category.name,
+          subcategories: categorySubs,
+        };
+      });
+
+      setCategoriesWithSubcategories(categoriesWithSubs);
+    } catch (err) {
+      console.error("Error fetching data:", err);
+      setNotification("Failed to load subcategories.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [token]);
 
   // ------------------Editing a subcategory-----------------------
   const handleEditClick = (subcategory: Subcategory, categoryName: string) => {
@@ -35,10 +108,23 @@ export default function SubcategoriesPage() {
     setEditingSubcategory(null);
   };
 
-  const handleSaveSubcategory = (updatedSubcategory: Subcategory) => { // API will be called to update the subcategory
-    updateSubcategory(updatedSubcategory);
-    handleCloseModal();
-    setNotification("Subcategory successfully updated!"); // Showing a success message for the update
+  const handleSaveSubcategory = async (updatedSubcategory: Subcategory) => {
+    if (!token) return;
+    try {
+      await api.put(`/subcategories/${updatedSubcategory._id}`, {
+        name: updatedSubcategory.name,
+        minRating: updatedSubcategory.minRating,
+        maxRating: updatedSubcategory.maxRating,
+      }, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      handleCloseModal();
+      setNotification("Subcategory successfully updated!");
+      fetchData(); // Refresh data
+    } catch (err: any) {
+      console.error("Error updating subcategory:", err);
+      setNotification(err.response?.data?.message || "Failed to update subcategory.");
+    }
   };
 
   // ------------------Adding a new subcategory-----------------------
@@ -50,13 +136,27 @@ export default function SubcategoriesPage() {
     setIsAddModalOpen(false);
   };
 
-  const handleAddSubcategory = (  // API will be called to add the subcategory
-    newSubcategory: Omit<Subcategory, "id" | "dateAdded">,
-    categoryId: number
+  const handleAddSubcategory = async (
+    newSubcategory: Omit<Subcategory, "id" | "dateAdded" | "_id" | "category">,
+    categoryId: string
   ) => {
-    addSubcategory(newSubcategory, categoryId);
-    handleCloseAddModal();
-    setNotification("Subcategory successfully added!"); // Showing a success message for the addition
+    if (!token) return;
+    try {
+      await api.post("/subcategories", {
+        name: newSubcategory.name,
+        minRating: newSubcategory.minRating,
+        maxRating: newSubcategory.maxRating,
+        category: categoryId,
+      }, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      handleCloseAddModal();
+      setNotification("Subcategory successfully added!");
+      fetchData(); // Refresh data
+    } catch (err: any) {
+      console.error("Error adding subcategory:", err);
+      setNotification(err.response?.data?.message || "Failed to add subcategory.");
+    }
   };
 
   // ------------------Deleting a subcategory-----------------------
@@ -68,11 +168,18 @@ export default function SubcategoriesPage() {
     setDeletingSubcategory(null);
   };
 
-  const handleConfirmDelete = () => {  // API will be called to delete the subcategory
-    if (deletingSubcategory) {
-      deleteSubcategory(deletingSubcategory.id);
+  const handleConfirmDelete = async () => {
+    if (!deletingSubcategory || !token) return;
+    try {
+      await api.delete(`/subcategories/${deletingSubcategory._id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       handleCloseDeleteModal();
-      setNotification("Subcategory successfully deleted!"); // Showing a success message for the deletion
+      setNotification("Subcategory successfully deleted!");
+      fetchData(); // Refresh data
+    } catch (err: any) {
+      console.error("Error deleting subcategory:", err);
+      setNotification(err.response?.data?.message || "Failed to delete subcategory.");
     }
   };
 
@@ -145,29 +252,43 @@ export default function SubcategoriesPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredData.map((category) =>
-                  category.subcategories.map((subcategory) => (
-                    <tr key={subcategory.id}>
-                      <td>{category.name}</td>
-                      <td>{subcategory.name}</td>
-                      <td>{subcategory.dateAdded}</td>
-                      <td>{`${subcategory.minRating}-${subcategory.maxRating}`}</td>
-                      <td>
-                        <button
-                          className="btn btn-edit"
-                          onClick={() => handleEditClick(subcategory, category.name)}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          className="btn btn-delete"
-                          onClick={() => handleDeleteClick(subcategory)}
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+                {loading ? (
+                  <tr>
+                    <td colSpan={5} style={{ textAlign: "center", padding: "20px" }}>
+                      Loading...
+                    </td>
+                  </tr>
+                ) : filteredData.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} style={{ textAlign: "center", padding: "20px" }}>
+                      No subcategories found.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredData.map((category) =>
+                    category.subcategories.map((subcategory) => (
+                      <tr key={subcategory._id || subcategory.id}>
+                        <td>{category.name}</td>
+                        <td>{subcategory.name}</td>
+                        <td>{subcategory.dateAdded || (subcategory.createdAt ? new Date(subcategory.createdAt).toLocaleDateString() : "N/A")}</td>
+                        <td>{`${subcategory.minRating}-${subcategory.maxRating}`}</td>
+                        <td>
+                          <button
+                            className="btn btn-edit"
+                            onClick={() => handleEditClick(subcategory, category.name)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="btn btn-delete"
+                            onClick={() => handleDeleteClick(subcategory)}
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )
                 )}
               </tbody>
             </table>

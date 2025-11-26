@@ -3,13 +3,14 @@
 import { useState, FormEvent, useEffect } from "react";
 import "./subcategories.css";
 import "../../components/buttons.css";
-import { CategoryWithSubcategories, Subcategory } from "../../hooks/useMockData";
+import { CategoryWithSubcategories } from "../../types/subcategory";
+import { Subcategory } from "../../types/subcategory";
 import { FaChevronDown } from "react-icons/fa";
 
 /* ----------------- Types ------------------ */
 interface AddSubcategoryProps {
   categories: CategoryWithSubcategories[];
-  onAdd: (newSubcategory: Omit<Subcategory, "id" | "dateAdded">, categoryId: number) => void;
+  onAdd: (newSubcategory: Omit<Subcategory, "id" | "dateAdded" | "_id" | "category">, categoryId: string) => void;
   onClose: () => void;
 }
 
@@ -24,8 +25,8 @@ export default function AddSubcategory({
   onAdd,
   onClose,
 }: AddSubcategoryProps) {
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number | string>(
-    categories[0]?.id || ""
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>(
+    categories[0]?._id || categories[0]?.id || ""
   );
   const [name, setName] = useState("");
   const [minRating, setMinRating] = useState(1);
@@ -58,7 +59,7 @@ export default function AddSubcategory({
     setErrors(newErrors);
 
     if (Object.keys(newErrors).length === 0) {
-      onAdd({ name, minRating, maxRating }, Number(selectedCategoryId));
+      onAdd({ name, minRating, maxRating }, selectedCategoryId);
     }
   };
 
@@ -79,11 +80,11 @@ export default function AddSubcategory({
                 id="category"
                 name="category"
                 value={selectedCategoryId}
-                onChange={(e) => setSelectedCategoryId(Number(e.target.value))}
+                onChange={(e) => setSelectedCategoryId(e.target.value)}
                 className="form-select"
               >
                 {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
+                  <option key={category._id || category.id} value={category._id || category.id}>
                     {category.name}
                   </option>
                 ))}

@@ -1,6 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import api from "../../utils/api";
+import { useUser } from "../../context/UserContext";
+import { Category } from "../../types/category";
 import "./categories.css";
 import '../../components/buttons.css';
 import '../../components/table.css';
@@ -8,17 +11,39 @@ import EditFormCategories from "./EditFormCategories";
 import AddCategory from "./AddCategory";
 import Notification from "../../components/notification/Notification";
 import DeleteConfirmation from "../../components/deleteConfirmation/DeleteConfirmation";
-import { useMockData, Category } from "../../hooks/useMockData";  // Importing the useMockData hook to get the mock data
 import { Sidebar } from "../../components/sidebar/Sidebar";
 
 export default function CategoriesPage() {
-  const { categories, addCategory, updateCategory, deleteCategory } = useMockData();
+  const { token } = useUser();
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [deletingCategory, setDeletingCategory] = useState<Category | null>(null);
-  const [notification, setNotification] = useState<string | null>(null); // Success message for the form
+  const [notification, setNotification] = useState<string | null>(null);
+
+  // Fetch categories from backend
+  const fetchCategories = async () => {
+    if (!token) return;
+    try {
+      setLoading(true);
+      const res = await api.get<Category[]>("/categories", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setCategories(res.data);
+    } catch (err) {
+      console.error("Error fetching categories:", err);
+      setNotification("Failed to load categories.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCategories();
+  }, [token]);
 
   const handleEditClick = (category: Category) => {
     setEditingCategory(category);
@@ -30,10 +55,18 @@ export default function CategoriesPage() {
     setEditingCategory(null);
   };
 
-  const handleSaveCategory = (updatedCategory: Category) => { // API will be called to update the category
-    updateCategory(updatedCategory);
-    handleCloseEditModal();
-    setNotification("Category successfully updated!");
+  const handleSaveCategory = async (updatedCategory: Category) => {
+    if (!token || !editingCategory) return;
+    try {
+      await api.put(`/categories/${editingCategory._id}`, { name: updatedCategory.name }, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      handleCloseEditModal();
+      setNotification("Category successfully updated!");
+      fetchCategories(); // Refresh the list
+    } catch (err: any) {
+      setNotification(err.response?.data?.message || "Failed to update category.");
+    }
   };
 
   const handleOpenAddModal = () => {
@@ -44,13 +77,12 @@ export default function CategoriesPage() {
     setIsAddModalOpen(false);
   };
 
-  const handleAddCategory = (newCategoryData: Omit<Category, "id" | "dateAdded">) => { // API will be called to add the category
-    addCategory(newCategoryData);
-    handleCloseAddModal();
-    setNotification("Category successfully added!"); // Showing a success message for the addition
+  const handleAddSuccess = () => {
+    setNotification("Category successfully added!");
+    fetchCategories(); // Refresh the list
   };
 
-  const handleDeleteClick = (category: Category) => { // API will be called to delete the category
+  const handleDeleteClick = (category: Category) => {
     setDeletingCategory(category);
     setIsDeleteModalOpen(true);
   };
@@ -60,11 +92,17 @@ export default function CategoriesPage() {
     setDeletingCategory(null);
   };
 
-  const handleConfirmDelete = () => {   // Confirming the deletion of the category database parameters
-    if (deletingCategory) {
-      deleteCategory(deletingCategory.id);
+  const handleConfirmDelete = async () => {
+    if (!token || !deletingCategory) return;
+    try {
+      await api.delete(`/categories/${deletingCategory._id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       handleCloseDeleteModal();
       setNotification("Category successfully deleted!");
+      fetchCategories(); // Refresh the list
+    } catch (err: any) {
+      setNotification(err.response?.data?.message || "Failed to delete category.");
     }
   };
 
@@ -98,11 +136,20 @@ export default function CategoriesPage() {
                 </tr>
               </thead>
               <tbody>
-                {categories.map((category, index) => (
-                  <tr key={category.id}>
-                    <td>{index + 1}</td>
-                    <td>{category.name}</td>
-                    <td>{category.dateAdded}</td>
+                {loading ? (
+                  <tr>
+                    <td colSpan={4} style={{ textAlign: "center" }}>Loading...</td>
+                  </tr>
+                ) : categories.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} style={{ textAlign: "center" }}>No categories found</td>
+                  </tr>
+                ) : (
+                  categories.map((category, index) => (
+                    <tr key={category._id}>
+                      <td>{index + 1}</td>
+                      <td>{category.name}</td>
+                      <td>{category.createdAt ? new Date(category.createdAt).toLocaleDateString() : "N/A"}</td>
                     <td>
                       <div className="action-buttons">
                         <button
@@ -120,7 +167,8 @@ export default function CategoriesPage() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -136,7 +184,7 @@ export default function CategoriesPage() {
 
            {/* Modal for adding a new category */}
            {isAddModalOpen && (
-             <AddCategory onAdd={handleAddCategory} onClose={handleCloseAddModal} />
+             <AddCategory onClose={handleCloseAddModal} onSuccess={handleAddSuccess} />
            )}
 
           {/* Modal for confirming deletion */}

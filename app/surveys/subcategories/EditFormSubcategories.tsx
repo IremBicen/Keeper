@@ -3,7 +3,7 @@
 import { useState, useEffect, FormEvent } from "react";
 import "./subcategories.css";
 import "../../components/buttons.css";
-import { Subcategory } from "../../hooks/useMockData";
+import { Subcategory } from "../../types/subcategory";
 
 /* ----------------- Types ------------------ */
 interface EditFormSubcategoriesProps {
@@ -68,7 +68,8 @@ export default function EditFormSubcategories({
 
     if (Object.keys(newErrors).length === 0) {
       const { categoryName, ...subData } = formData;
-      onSave(subData as Subcategory);
+      // Ensure _id is preserved
+      onSave({ ...subData, _id: subcategory._id } as Subcategory);
     }
   };
 

@@ -1,18 +1,22 @@
 "use client";
 
 import { useState, FormEvent, useEffect } from "react";
-import { Category } from "../../hooks/useMockData"; // Import the centralized Category type
+import api from "../../utils/api";
+import { useUser } from "../../context/UserContext";
+import { CreateCategoryData } from "../../types/category";
 import './categories.css';
 import '../../components/buttons.css';
 
 interface AddCategoryProps {
-  onAdd: (newCategoryData: Omit<Category, "id" | "dateAdded">) => void;
   onClose: () => void;
+  onSuccess?: () => void; // Callback after successful creation
 }
 
-export default function AddCategory({ onAdd, onClose }: AddCategoryProps) {
+export default function AddCategory({ onClose, onSuccess }: AddCategoryProps) {
+  const { token } = useUser();
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {  // Clearing the error message after 5 seconds
     if (error) {
@@ -23,14 +27,38 @@ export default function AddCategory({ onAdd, onClose }: AddCategoryProps) {
     }
   }, [error]);
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) { // If the category name is empty, set the error message
+    if (!name.trim()) {
       setError("Category name cannot be empty.");
       return;
     }
+
+    if (!token) {
+      setError("You must be logged in to add categories.");
+      return;
+    }
+
+    setLoading(true);
     setError(null);
-    onAdd({ name });
+
+    try {
+      const categoryData: CreateCategoryData = { name: name.trim() };
+      await api.post("/categories", categoryData, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      // Success - reset form and notify parent
+      setName("");
+      if (onSuccess) {
+        onSuccess();
+      }
+      onClose();
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Failed to create category. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -56,11 +84,11 @@ export default function AddCategory({ onAdd, onClose }: AddCategoryProps) {
             {error && <p className="error-message">{error}</p>}
           </div>
           <div className="modal-footer">
-            <button type="button" onClick={onClose} className="btn btn-light">
+            <button type="button" onClick={onClose} className="btn btn-light" disabled={loading}>
               Cancel
             </button>
-            <button type="submit" className="btn btn-primary">
-              Save
+            <button type="submit" className="btn btn-primary" disabled={loading}>
+              {loading ? "Saving..." : "Save"}
             </button>
           </div>
         </form>

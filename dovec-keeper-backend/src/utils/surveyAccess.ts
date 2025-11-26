@@ -1,0 +1,99 @@
+import { ISurvey } from "../models/Survey";
+import { IUser } from "../models/User";
+
+/**
+ * Check if a user can access a survey based on assignment rules
+ */
+export function canUserAccessSurvey(survey: ISurvey, user: IUser): boolean {
+  // Admin can always access all surveys
+  if (user.role === "admin") {
+    return true;
+  }
+
+  const assignmentType = survey.assignmentType || "all";
+
+  switch (assignmentType) {
+    case "all":
+      return true;
+
+    case "admins":
+      return user.role === "admin";
+
+    case "managers":
+      return user.role === "manager";
+
+    case "employees":
+      return user.role === "employee";
+
+    case "department":
+      if (!survey.assignedDepartments || survey.assignedDepartments.length === 0) {
+        return false;
+      }
+      return user.department && survey.assignedDepartments.includes(user.department);
+
+    case "specific":
+      if (!survey.assignedUsers || survey.assignedUsers.length === 0) {
+        return false;
+      }
+      const userIdStr = user._id.toString();
+      return survey.assignedUsers.some(
+        (assignedUserId) => assignedUserId.toString() === userIdStr
+      );
+
+    default:
+      return false;
+  }
+}
+
+/**
+ * Build MongoDB query to filter surveys based on user role and assignments
+ */
+export function buildSurveyQuery(user: IUser): any {
+  // Admin can see all surveys
+  if (user.role === "admin") {
+    return {};
+  }
+
+  // Manager can see:
+  // 1. Surveys assigned to their department
+  // 2. Surveys assigned specifically to them
+  // 3. Surveys assigned to "all"
+  // 4. Surveys assigned to "managers"
+  if (user.role === "manager") {
+    return {
+      $or: [
+        { assignmentType: "all" },
+        { assignmentType: "managers" },
+        {
+          assignmentType: "department",
+          assignedDepartments: user.department || "",
+        },
+        {
+          assignmentType: "specific",
+          assignedUsers: user._id,
+        },
+      ],
+    };
+  }
+
+  // Employee (user) can see:
+  // 1. Surveys assigned to "all"
+  // 2. Surveys assigned to "employees"
+  // 3. Surveys assigned specifically to them
+  // 4. Surveys assigned to their department
+  return {
+    $or: [
+      { assignmentType: "all" },
+      { assignmentType: "employees" },
+      {
+        assignmentType: "department",
+        assignedDepartments: user.department || "",
+      },
+      {
+        assignmentType: "specific",
+        assignedUsers: user._id,
+      },
+    ],
+  };
+}
+

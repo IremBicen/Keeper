@@ -23,3 +23,24 @@
   padding: 20px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
+
+/* Action cell styling to prevent overflow */
+.table-container td:last-child {
+  white-space: nowrap;
+  min-width: 300px;
+  max-width: 500px;
+}
+
+.table-container .action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.table-container .action-buttons .btn {
+  margin-right: 0;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}

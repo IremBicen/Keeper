@@ -1,36 +1,182 @@
 "use client";
 
-import { useState } from 'react';
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from "next/navigation";
 import * as XLSX from 'xlsx'; // This is the library for exporting the results data to a Excel file
+import api from "../utils/api";
+import { useUser } from "../context/UserContext";
+import { EmployeeResult } from "../types/employee";
 import { Sidebar } from "../components/sidebar/Sidebar";
 import "./results.css";
 import "../components/table.css";
 import "../components/buttons.css";
-import { useMockData } from "../hooks/useMockData";
 import { HiArrowUpOnSquare } from "react-icons/hi2";
 import SpecificEmployeeDetails from '../users/specificEmployeeDetailsForm/specificEmployeeDetails';
-import { EmployeeResult } from '../hooks/mockData';
+import SurveyAnswersView from './SurveyAnswersView';
 
-export default function ResultsPage() {
+function ResultsPageContent() {
     const router = useRouter();
-    const { resultsData } = useMockData();
+    const searchParams = useSearchParams();
+    const { token } = useUser();
+    const [resultsData, setResultsData] = useState<EmployeeResult[]>([]);
+    const [loading, setLoading] = useState(true);
     const [selectedEmployee, setSelectedEmployee] = useState<EmployeeResult | null>(null);
+    const [selectedEmployeeAggregated, setSelectedEmployeeAggregated] = useState<EmployeeResult | null>(null);
+    const [loadingEmployeeDetails, setLoadingEmployeeDetails] = useState(false);
+    const [showAnswersView, setShowAnswersView] = useState(false);
+    const [selectedResultForAnswers, setSelectedResultForAnswers] = useState<EmployeeResult | null>(null);
+    const [selectedEmployeeKpi, setSelectedEmployeeKpi] = useState<number | undefined>(undefined);
+    const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | undefined>(undefined);
 
-    const handleViewClick = (employee: EmployeeResult) => {
-        setSelectedEmployee(employee);
+    // Fetch results from backend
+    useEffect(() => {
+        const fetchResults = async () => {
+            if (!token) return;
+            try {
+                setLoading(true);
+                const res = await api.get<EmployeeResult[]>("/results", {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                // Filter out any null or invalid results
+                const validResults = (res.data || []).filter((result: any) => {
+                    if (!result) return false;
+                    // Check if result has required fields
+                    if (!result._id && !result.id) return false;
+                    // Check if employeeName exists (required for display)
+                    if (!result.employeeName) return false;
+                    // Check if scores are valid numbers
+                    if (typeof result.performanceScore !== 'number' || isNaN(result.performanceScore)) return false;
+                    return true;
+                });
+                setResultsData(validResults);
+            } catch (err) {
+                console.error("Error fetching results:", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchResults();
+    }, [token]);
+
+    // Refresh results when navigating back from users page (check for refresh param)
+    useEffect(() => {
+        const refresh = searchParams.get('refresh');
+        if (refresh === 'true' && token) {
+            // Refetch results when coming back from users page (KPI might have been updated)
+            const fetchResults = async () => {
+                try {
+                    setLoading(true);
+                    const res = await api.get<EmployeeResult[]>("/results", {
+                        headers: { Authorization: `Bearer ${token}` },
+                    });
+                    const validResults = (res.data || []).filter((result: any) => {
+                        if (!result) return false;
+                        if (!result._id && !result.id) return false;
+                        if (!result.employeeName) return false;
+                        if (typeof result.performanceScore !== 'number' || isNaN(result.performanceScore)) return false;
+                        return true;
+                    });
+                    setResultsData(validResults);
+                    // Remove refresh param from URL
+                    router.replace('/results', { scroll: false });
+                } catch (err) {
+                    console.error("Error refreshing results:", err);
+                } finally {
+                    setLoading(false);
+                }
+            };
+            fetchResults();
+        }
+    }, [searchParams, token, router]);
+
+    const handleViewClick = async (result: EmployeeResult) => {
+        // Check if this is a keeper survey
+        const surveyTitle = result.surveyTitle?.toLowerCase() || '';
+        const isKeeperSurvey = surveyTitle.includes('keeper');
+        
+        if (isKeeperSurvey) {
+            // For keeper surveys, fetch aggregated results for this employee
+            // This ensures we show all their survey data, not just one survey
+            try {
+                setLoadingEmployeeDetails(true);
+                // IMPORTANT: result._id and result.id are composite keys (employeeId_surveyId)
+                // We must use result.employeeId to get the actual user ID
+                let employeeId = result.employeeId;
+                
+                // If employeeId is not directly available, try to extract it
+                if (!employeeId) {
+                    // Check if _id or id is a composite key and extract employeeId
+                    const compositeKey = result._id || result.id;
+                    if (compositeKey && typeof compositeKey === 'string' && compositeKey.includes('_')) {
+                        // Extract employeeId from composite key (format: employeeId_surveyId)
+                        employeeId = compositeKey.split('_')[0];
+                        console.log('⚠️ Extracted employeeId from composite key:', employeeId);
+                    } else {
+                        employeeId = compositeKey;
+                    }
+                }
+                
+                // Normalize to string
+                employeeId = employeeId?.toString();
+                
+                if (!employeeId) {
+                    console.error("❌ No employee ID found in result:", result);
+                    return;
+                }
+                
+                console.log('🔍 Using employeeId for API calls:', employeeId);
+                
+                const res = await api.get<EmployeeResult>(`/results/${employeeId}`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                
+                // Also fetch user data to get KPI
+                try {
+                    const userRes = await api.get(`/users/${employeeId}`, {
+                        headers: { Authorization: `Bearer ${token}` },
+                    });
+                    setSelectedEmployeeKpi((userRes.data as any)?.kpi);
+                } catch (err) {
+                    console.error("❌ Error fetching user KPI:", err);
+                }
+                
+                setSelectedEmployeeAggregated(res.data);
+                setSelectedEmployeeId(employeeId);
+                setSelectedEmployee(null); // Clear single result
+                setShowAnswersView(false);
+            } catch (err: any) {
+                console.error("Error fetching employee aggregated results:", err);
+                // Fallback to showing the single result if fetch fails
+                setSelectedEmployee(result);
+                setSelectedEmployeeAggregated(null);
+            } finally {
+                setLoadingEmployeeDetails(false);
+            }
+        } else {
+            // Show answers for other surveys (yönetici, takım arkadaşı, etc.)
+            setSelectedResultForAnswers(result);
+            setShowAnswersView(true);
+            setSelectedEmployee(null);
+            setSelectedEmployeeAggregated(null);
+        }
     };
 
     const handleCloseModal = () => {
         setSelectedEmployee(null);
+        setSelectedEmployeeAggregated(null);
+        setSelectedEmployeeKpi(undefined);
+        setSelectedEmployeeId(undefined);
     };
 
     // Export to a formatted Excel file using a plain JS function (XLSX library)
     const handleExport = () => {
         // 1. Prepare the data in an array of objects format
-        const dataForSheet = resultsData.map(item => ({
+        // Filter out any null items first
+        const validData = resultsData.filter(item => item && (item._id || item.id));
+        const dataForSheet = validData.map(item => ({
             "Employee Name": item.employeeName,
             "Department": item.department,
+            "Survey Name": item.surveyTitle || "Unknown Survey",
             "Date": item.date,
             "Performance Score": item.performanceScore.toFixed(1),
             "Contribution Score": item.contributionScore.toFixed(1),
@@ -50,6 +196,10 @@ export default function ResultsPage() {
 
         // 3. Define column widths (simplified)
         // Get the number of columns from the first data row + headers
+        if (dataForSheet.length === 0) {
+            alert("No data to export");
+            return;
+        }
         const numberOfColumns = Object.keys(dataForSheet[0]).length;
         // Create an array of width objects, all set to 20
         const columnWidths = Array(numberOfColumns).fill({ wch: 20 });
@@ -79,6 +229,7 @@ export default function ResultsPage() {
                             <tr>
                                 <th>Employee Name</th>
                                 <th>Department</th>
+                                <th>Survey Name</th>
                                 <th>Date</th>
                                 <th>Performance Score</th>
                                 <th>Contribution Score</th>
@@ -88,34 +239,78 @@ export default function ResultsPage() {
                             </tr>
                         </thead>
                         <tbody>
-                            {resultsData.map((result) => (
-                                <tr key={result.id}>
-                                    <td>{result.employeeName}</td>
-                                    <td>{result.department}</td>
-                                    <td>{result.date}</td>
-                                    <td>{result.performanceScore.toFixed(1)}</td>
-                                    <td>{result.contributionScore.toFixed(1)}</td>
-                                    <td>{result.potentialScore.toFixed(1)}</td>
-                                    <td>{result.keeperScore.toFixed(1)}</td>
-                                    <td className="action-cell">
-                                        <button className="btn btn-secondary" onClick={() => handleViewClick(result)}>View</button>
-                                        <button className="btn btn-light" onClick={() => router.push(`/users?employeeId=${result.id}&source=results`)}>User Profile</button>
-                                    </td>
+                            {loading ? (
+                                <tr>
+                                    <td colSpan={9} style={{ textAlign: "center" }}>Loading...</td>
                                 </tr>
-                            ))}
+                            ) : resultsData.length === 0 ? (
+                                <tr>
+                                    <td colSpan={9} style={{ textAlign: "center" }}>No results found</td>
+                                </tr>
+                            ) : (
+                                resultsData
+                                    .filter((result) => result && (result._id || result.id))
+                                    .map((result) => (
+                                    <tr key={result._id || result.id || `result-${Math.random()}`}>
+                                        <td>{result.employeeName}</td>
+                                        <td>{result.department}</td>
+                                        <td>{result.surveyTitle || 'Unknown Survey'}</td>
+                                        <td>{result.date}</td>
+                                        <td>{result.performanceScore?.toFixed(1) || '0.0'}</td>
+                                        <td>{result.contributionScore?.toFixed(1) || '0.0'}</td>
+                                        <td>{result.potentialScore?.toFixed(1) || '0.0'}</td>
+                                        <td>{result.keeperScore?.toFixed(1) || '0.0'}</td>
+                                        <td className="action-cell">
+                                            <button className="btn btn-secondary" onClick={() => handleViewClick(result)}>View</button>
+                                            <button className="btn btn-light" onClick={() => {
+                                                // Navigate to user details page
+                                                const employeeId = result.employeeId || result._id || result.id;
+                                                if (!employeeId) return;
+                                                router.push(`/users?employeeId=${employeeId}&source=results`);
+                                            }}>User Details</button>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
                         </tbody>
                     </table>
                 </div>
                 
-                {/* If an employee is selected, display the specific employee details */}
-                {selectedEmployee && (
+                {/* If an employee is selected for keeper survey, display the calculated scores */}
+                {loadingEmployeeDetails ? (
+                    <div className="employee-details-modal-overlay">
+                        <div className="employee-details-modal-content" style={{ textAlign: 'center', padding: '2rem' }}>
+                            <p>Loading employee details...</p>
+                        </div>
+                    </div>
+                ) : selectedEmployeeId ? (
                     <SpecificEmployeeDetails 
-                        employee={selectedEmployee}
+                        employeeId={selectedEmployeeId}
                         onClose={handleCloseModal}
                         isModal={true}  //This is to indicate that this is a modal (Results page)
+                    />
+                ) : null}
+
+                {/* If showing answers view for non-keeper surveys */}
+                {showAnswersView && selectedResultForAnswers && (
+                    <SurveyAnswersView
+                        surveyId={selectedResultForAnswers.surveyId || ''}
+                        employeeId={selectedResultForAnswers.employeeId || selectedResultForAnswers._id || ''}
+                        onClose={() => {
+                            setShowAnswersView(false);
+                            setSelectedResultForAnswers(null);
+                        }}
                     />
                 )}
             </main>
         </div>
+    );
+}
+
+export default function ResultsPage() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <ResultsPageContent />
+        </Suspense>
     );
 }

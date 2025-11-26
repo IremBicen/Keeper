@@ -2,38 +2,57 @@
 
 import { useState, useEffect } from "react";
 import Link from 'next/link';
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useUser } from "@/app/context/UserContext";
 import favicon from "@/app/favicon.png";
 import {
   DashboardIcon,
   SurveysIcon,
   UsersIcon,
   ResultsIcon,
+  EvaluationsIcon,
   LogoutIcon,
   ArrowLeftIcon,
   ArrowRightIcon,
 } from "./icons";
 import "./sidebar.css";
 
-const menuItems = [
-  { name: "Dashboard", icon: DashboardIcon, href: "/" },
-  {
-    name: "Surveys",
-    icon: SurveysIcon,
-    href: "/surveys",
-    subItems: [
-      { name: "Categories", href: "/surveys/categories" },
-      { name: "Subcategories", href: "/surveys/subcategories" },
-    ],
-  },
-  { name: "Users", icon: UsersIcon, href: "/users" },
-  { name: "Results", icon: ResultsIcon, href: "/results" },
-];
+const getMenuItems = (userRole?: string) => {
+  const items: any[] = [
+    { name: "Dashboard", icon: DashboardIcon, href: "/" },
+    {
+      name: "Surveys",
+      icon: SurveysIcon,
+      href: "/surveys",
+      subItems: userRole === "admin"
+        ? [
+            { name: "Categories", href: "/surveys/categories" },
+            { name: "Subcategories", href: "/surveys/subcategories" },
+          ]
+        : undefined, // No subItems for managers and employees
+    },
+  ];
+
+  // Add Users and Results only for admin and manager
+  if (userRole === "admin" || userRole === "manager") {
+    items.push({ name: "Users", icon: UsersIcon, href: "/users" });
+    items.push({ name: "Results", icon: ResultsIcon, href: "/results" });
+  }
+
+  // Add Evaluations menu item only for admins
+  if (userRole === "admin") {
+    items.push({ name: "Evaluations", icon: EvaluationsIcon, href: "/evaluations" });
+  }
+
+  return items;
+};
 
 export function Sidebar() {
   const [isMinimized, setIsMinimized] = useState(false);
   const [isHoverOpen, setIsHoverOpen] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
+  const { logout, user } = useUser();
 
   useEffect(() => {
     const handleResize = () => {
@@ -65,6 +84,11 @@ export function Sidebar() {
   const showText = !isMinimized || isHoverOpen;
   const isSurveysPage = pathname.startsWith("/surveys");
 
+  const handleLogout = () => {
+    logout();
+    router.push("/login");
+  };
+
   return (
     <aside
       className={`my-sidebar ${
@@ -93,7 +117,7 @@ export function Sidebar() {
 
       <nav className="my-sidebar-nav">
         <ul>
-          {menuItems.map((item) => (
+          {getMenuItems(user?.role).map((item) => (
             <li key={item.name} className="my-sidebar-nav-item">
               <Link
                 href={item.href}
@@ -104,7 +128,7 @@ export function Sidebar() {
                 <item.icon className="my-sidebar-nav-icon" />
                 {showText && <span>{item.name}</span>}
               </Link>
-              {item.subItems && isSurveysPage && showText && (
+              {item.subItems && item.subItems.length > 0 && isSurveysPage && showText && (
                 <ul className="my-sidebar-sub-nav">
                   {item.subItems.map((subItem) => (
                     <li key={subItem.name} className="my-sidebar-sub-nav-item">
@@ -126,10 +150,21 @@ export function Sidebar() {
       </nav>
 
       <div className="my-sidebar-footer">
-        <Link href="#" className="my-sidebar-logout-link">
+        <button 
+          onClick={handleLogout}
+          className="my-sidebar-logout-link"
+          style={{ 
+            background: 'none', 
+            border: 'none', 
+            cursor: 'pointer',
+            width: '100%',
+            color: 'inherit',
+            font: 'inherit'
+          }}
+        >
           <LogoutIcon className="my-sidebar-logout-icon" />
           {showText && <span>Logout</span>}
-        </Link>
+        </button>
       </div>
     </aside>
   );
