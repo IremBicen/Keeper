@@ -12,10 +12,14 @@ import resultsRoutes from "./routes/results";
 
 dotenv.config();
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: 'http://13.60.162.249:3000', // frontend’in public IP + port
+  credentials: true
+}));
+
 app.use(express.json());
 
-const PORT = process.env.PORT || 5000;
+const PORT: number = process.env.PORT ? parseInt(process.env.PORT, 10) : 5000;
 
 connectDB();
 
@@ -29,6 +33,6 @@ app.use("/api/results", resultsRoutes);
 
 app.get("/", (req, res) => res.send("Döveç Keeper Backend is up"));
 
-app.listen(PORT, () => {
+app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT}`);
 });
