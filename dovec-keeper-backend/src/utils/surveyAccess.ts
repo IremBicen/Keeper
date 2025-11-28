@@ -17,7 +17,8 @@ export function canUserAccessSurvey(survey: ISurvey, user: IUser): boolean {
       return true;
 
     case "admins":
-      return user.role === "admin";
+      // Admins are already granted access above. Non-admins cannot access admin-only surveys.
+      return false;
 
     case "managers":
       return user.role === "manager";
@@ -29,13 +30,16 @@ export function canUserAccessSurvey(survey: ISurvey, user: IUser): boolean {
       if (!survey.assignedDepartments || survey.assignedDepartments.length === 0) {
         return false;
       }
-      return user.department && survey.assignedDepartments.includes(user.department);
+      if (!user.department) {
+        return false;
+      }
+      return survey.assignedDepartments.includes(user.department);
 
     case "specific":
       if (!survey.assignedUsers || survey.assignedUsers.length === 0) {
         return false;
       }
-      const userIdStr = user._id.toString();
+      const userIdStr = String(user._id);
       return survey.assignedUsers.some(
         (assignedUserId) => assignedUserId.toString() === userIdStr
       );

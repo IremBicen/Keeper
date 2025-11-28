@@ -54,7 +54,9 @@ router.get("/:id", protect, async (req: any, res) => {
       }
     } else if (req.user.role !== "admin") {
       // Regular users can only see themselves
-      if (user._id.toString() !== req.user._id.toString()) {
+      const userIdStr = String(user._id);
+      const reqUserIdStr = String(req.user._id);
+      if (userIdStr !== reqUserIdStr) {
         return res.status(403).json({ message: "Access denied" });
       }
     }
