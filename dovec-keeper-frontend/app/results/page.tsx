@@ -112,7 +112,8 @@ function ResultsPageContent() {
                         employeeId = compositeKey.split('_')[0];
                         console.log('⚠️ Extracted employeeId from composite key:', employeeId);
                     } else {
-                        employeeId = compositeKey;
+                        // Fallback: ensure we always convert compositeKey to string
+                        employeeId = compositeKey?.toString();
                     }
                 }
                 

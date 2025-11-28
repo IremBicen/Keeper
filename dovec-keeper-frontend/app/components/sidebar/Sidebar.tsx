@@ -17,8 +17,20 @@ import {
 } from "./icons";
 import "./sidebar.css";
 
+type SidebarSubItem = {
+  name: string;
+  href: string;
+};
+
+type SidebarItem = {
+  name: string;
+  icon: any;
+  href: string;
+  subItems?: SidebarSubItem[];
+};
+
 const getMenuItems = (userRole?: string) => {
-  const items: any[] = [
+  const items: SidebarItem[] = [
     { name: "Dashboard", icon: DashboardIcon, href: "/" },
     {
       name: "Surveys",
