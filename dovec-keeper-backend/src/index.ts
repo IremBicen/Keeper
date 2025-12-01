@@ -13,7 +13,7 @@ import resultsRoutes from "./routes/results";
 dotenv.config();
 const app = express();
 app.use(cors({
-  origin: 'http://13.60.162.249:3000', // frontend’in public IP + port
+  origin: 'http://16.171.30.108:3000', // frontend’in public IP + port
   credentials: true
 }));
 
