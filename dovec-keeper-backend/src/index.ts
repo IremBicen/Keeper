@@ -12,9 +12,15 @@ import resultsRoutes from "./routes/results";
 
 dotenv.config();
 const app = express();
+
+const allowedOrigins = [
+  "http://localhost:3000",
+  "http://16.171.30.108:3000",
+];
+
 app.use(cors({
-  origin: 'http://16.171.30.108:3000', // frontend’in public IP + port
-  credentials: true
+  origin: allowedOrigins,
+  credentials: true,
 }));
 
 app.use(express.json());
