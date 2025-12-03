@@ -1,9 +1,7 @@
 import { Router } from "express";
-import mongoose from "mongoose";
 import ResponseModel from "../models/Response";
 import Subcategory from "../models/Subcategory";
 import Category from "../models/Category";
-import User from "../models/User";
 import { protect } from "../middleware/auth";
 
 const router = Router();
@@ -32,18 +30,10 @@ async function getSubcategoriesForSurvey(survey: any): Promise<any[]> {
       }
       
       if (category && category._id) {
-        // Fetch subcategories for this category and populate category name
-        const subcategories = await Subcategory.find({ category: category._id }).populate("category", "name");
-        // Filter out any null subcategories and add category name to each
-        const validSubcategories = (subcategories || []).filter((sub: any) => sub && sub._id).map((sub: any) => {
-          const subObj = sub.toObject ? sub.toObject() : sub;
-          // Extract category name from populated category object
-          const catName = subObj.category?.name || (typeof subObj.category === 'string' ? subObj.category : category.name) || category.name || "";
-          return {
-            ...subObj,
-            categoryName: catName
-          };
-        });
+        // Fetch subcategories for this category
+        const subcategories = await Subcategory.find({ category: category._id });
+        // Filter out any null subcategories
+        const validSubcategories = (subcategories || []).filter((sub: any) => sub && sub._id);
         subcategoriesList.push(...validSubcategories);
       }
     }
@@ -56,10 +46,9 @@ async function getSubcategoriesForSurvey(survey: any): Promise<any[]> {
 }
 
 // Helper function to calculate scores from answers and questions/subcategories
-// userKpi: KPI value from database (admin-entered, not from survey)
-function calculateScores(answers: any[], questions: any[], userKpi: number = 0) {
+function calculateScores(answers: any[], questions: any[]) {
   const scores = {
-    kpiScore: userKpi, // Use KPI from database
+    kpiScore: 0,
     potential: 0,
     cultureHarmony: 0,
     teamEffect: 0,
@@ -85,41 +74,16 @@ function calculateScores(answers: any[], questions: any[], userKpi: number = 0) 
   });
 
   // Create a map of questionId to answer value
-  // Normalize all IDs to strings for consistent matching
   const answerMap = new Map();
   answers.forEach((a) => {
-    if (!a.questionId) return;
-    
-    // Normalize the questionId to string
-    const qId = a.questionId.toString();
-    answerMap.set(qId, a.value);
-    
-    // Also store with ObjectId format if it's a valid ObjectId
-    try {
-      if (mongoose.Types.ObjectId.isValid(qId)) {
-        const objId = new mongoose.Types.ObjectId(qId);
-        answerMap.set(objId.toString(), a.value);
-        // Also store the ObjectId itself as key
-        answerMap.set(objId, a.value);
-      }
-    } catch (e) {
-      // Ignore ObjectId conversion errors
-    }
-  });
-  
-  // Debug logging
-  console.log("=== CALCULATION DEBUG ===");
-  console.log("User KPI:", userKpi);
-  console.log("Answers count:", answers.length);
-  console.log("Answer IDs:", Array.from(answerMap.keys()));
-  console.log("Questions count:", questions.length);
-  console.log("Question details:");
-  questions.forEach((q, idx) => {
-    console.log(`  Q${idx + 1}: ${q.name || q.text} | Category: ${q.categoryName || 'N/A'} | ID: ${q._id?.toString() || q.id || 'N/A'}`);
+    answerMap.set(a.questionId, a.value);
+    // Also try with questionId as string
+    answerMap.set(a.questionId?.toString(), a.value);
   });
 
   // Calculate scores based on question types and text
-  // Note: KPI is not calculated from survey, it comes from database (userKpi parameter)
+  let totalKPI = 0;
+  let kpiCount = 0;
   let totalPotential = 0;
   let potentialCount = 0;
   let totalCulture = 0;
@@ -128,179 +92,102 @@ function calculateScores(answers: any[], questions: any[], userKpi: number = 0) 
   let teamCount = 0;
   let totalExecutive = 0;
   let executiveCount = 0;
+  let totalPerformance = 0;
+  let performanceCount = 0;
+  let totalContribution = 0;
+  let contributionCount = 0;
 
   questions.forEach((question) => {
     // Try multiple ways to match question ID
-    // Normalize all IDs to strings for consistent matching
-    let answerValue: any = undefined;
+    const questionId = question.id || question._id?.toString();
+    let answerValue = answerMap.get(questionId);
     
-    // Get all possible ID representations
-    const questionId = question.id || question._id;
-    const questionIdStr = questionId?.toString() || "";
-    const questionIdObj = question._id;
-    
-    // Try direct string match first
-    if (questionIdStr) {
-      answerValue = answerMap.get(questionIdStr);
+    // If not found, try matching by _id as string (for subcategories)
+    if (answerValue === undefined && question._id) {
+      answerValue = answerMap.get(question._id.toString());
     }
     
-    // Try with _id as string
-    if (answerValue === undefined && questionIdObj) {
-      const qIdStr = questionIdObj.toString();
-      answerValue = answerMap.get(qIdStr);
+    // If still not found, try the "question-{id}" format (for old responses)
+    if (answerValue === undefined && questionId) {
+      answerValue = answerMap.get(`question-${questionId}`);
     }
     
-    // Try with _id as ObjectId
-    if (answerValue === undefined && questionIdObj) {
-      answerValue = answerMap.get(questionIdObj);
-    }
-    
-    // Try the "question-{id}" format (for old responses)
-    if (answerValue === undefined && questionIdStr) {
-      answerValue = answerMap.get(`question-${questionIdStr}`);
-    }
-    
-    // If still not found, try matching by exact string comparison with all answer keys
-    if (answerValue === undefined && questionIdStr) {
+    // If still not found, try matching by partial key match
+    if (answerValue === undefined && questionId) {
       const answerKeys = Array.from(answerMap.keys());
       for (const key of answerKeys) {
-        const keyStr = key.toString();
-        // Exact match (case-insensitive for safety)
-        if (keyStr.toLowerCase() === questionIdStr.toLowerCase()) {
+        // Check if key matches the question ID
+        if (key.toString() === questionId.toString() || 
+            key.toString().endsWith(questionId) || 
+            key.toString().includes(questionId)) {
           answerValue = answerMap.get(key);
           break;
         }
       }
     }
     
-    // Debug logging for unmatched questions
     if (answerValue === undefined || answerValue === null) {
-      console.log(`  ❌ No answer found for question: ${question.name || question.text || questionIdStr} (ID: ${questionIdStr})`);
       return;
     }
 
     const numValue = typeof answerValue === "number" ? answerValue : parseFloat(answerValue);
-    if (isNaN(numValue)) {
-      console.log(`  ⚠️ Invalid answer value for question: ${question.name || question.text || questionIdStr} (value: ${answerValue})`);
-      return;
-    }
+    if (isNaN(numValue)) return;
 
     // For subcategories, use the name; for questions, use text
     const questionText = ((question.name || question.text || "").toLowerCase());
     const questionType = (question.type || "").toLowerCase();
-    // Also check category name if available (for subcategories)
-    const categoryName = (question.categoryName || "").toLowerCase();
 
-    // Debug logging for categorization
-    console.log(`  ✓ Matched question: ${question.name || question.text} | Category: ${categoryName || 'N/A'} | Answer: ${numValue}`);
-
-    // Categorize questions based on category name first (more reliable), then question text
-    // Note: KPI is NOT calculated from survey - it comes from database
-    // Expected category names (English): "Potential", "Culture Harmony", "Team Effect", "Executive Observation"
-    // Expected category names (Turkish): "Potansiyel", "Kültür Uyumu", "Takım Etkisi", "Yönetici Gözlemi"
-    
-    // Check category name first (most reliable) - match both English and Turkish category names
-    const isPotential = 
-      categoryName.includes("potential") || 
-      categoryName.includes("potansiyel") ||
-      questionType === "potential" || 
-      questionText.includes("potential") ||
-      questionText.includes("potansiyel");
-    
-    const isCulture = 
-      categoryName.includes("culture harmony") || 
-      categoryName.includes("kültür uyumu") ||
-      (categoryName.includes("culture") && categoryName.includes("harmony")) ||
-      (categoryName.includes("kültür") && categoryName.includes("uyumu")) ||
-      categoryName.includes("culture") || 
-      categoryName.includes("harmony") || 
-      categoryName.includes("kültür") ||
-      questionText.includes("culture") || 
-      questionText.includes("harmony");
-    
-    const isTeam = 
-      categoryName.includes("team effect") || 
-      categoryName.includes("takım etkisi") ||
-      (categoryName.includes("team") && categoryName.includes("effect")) ||
-      (categoryName.includes("takım") && categoryName.includes("etkisi")) ||
-      categoryName.includes("team") || 
-      categoryName.includes("team impact") ||
-      categoryName.includes("takım") ||
-      questionText.includes("team") || 
-      questionText.includes("team effect") ||
-      questionText.includes("team impact");
-    
-    const isExecutive = 
-      categoryName.includes("executive observation") || 
-      categoryName.includes("yönetici gözlemi") ||
-      (categoryName.includes("executive") && categoryName.includes("observation")) ||
-      (categoryName.includes("yönetici") && categoryName.includes("gözlemi")) ||
-      categoryName.includes("executive") || 
-      categoryName.includes("observation") || 
-      categoryName.includes("manager evaluation") ||
-      categoryName.includes("yönetici") ||
-      questionText.includes("executive") || 
-      questionText.includes("observation") || 
-      questionText.includes("manager evaluation");
-
-    if (isPotential) {
+    // Categorize questions based on type and text
+    if (questionType === "kpi" || questionText.includes("kpi")) {
+      totalKPI += numValue;
+      kpiCount++;
+    }
+    if (questionType === "potential" || questionText.includes("potential")) {
       totalPotential += numValue;
       potentialCount++;
-      console.log(`    → Categorized as POTENTIAL`);
     }
-    if (isCulture) {
+    if (questionText.includes("culture") || questionText.includes("harmony")) {
       totalCulture += numValue;
       cultureCount++;
-      console.log(`    → Categorized as CULTURE`);
     }
-    if (isTeam) {
+    if (questionText.includes("team") || questionText.includes("collaboration")) {
       totalTeam += numValue;
       teamCount++;
-      console.log(`    → Categorized as TEAM`);
     }
-    if (isExecutive) {
+    if (questionText.includes("executive") || questionText.includes("observation")) {
       totalExecutive += numValue;
       executiveCount++;
-      console.log(`    → Categorized as EXECUTIVE`);
+    }
+    if (questionText.includes("performance")) {
+      totalPerformance += numValue;
+      performanceCount++;
+    }
+    if (questionText.includes("contribution")) {
+      totalContribution += numValue;
+      contributionCount++;
     }
   });
 
-  // Calculate averages for survey-based metrics
+  // Calculate averages
+  scores.kpiScore = kpiCount > 0 ? totalKPI / kpiCount : 0;
   scores.potential = potentialCount > 0 ? totalPotential / potentialCount : 0;
   scores.cultureHarmony = cultureCount > 0 ? totalCulture / cultureCount : 0;
   scores.teamEffect = teamCount > 0 ? totalTeam / teamCount : 0;
   scores.executiveObservation = executiveCount > 0 ? totalExecutive / executiveCount : 0;
+  scores.performanceScore = performanceCount > 0 ? totalPerformance / performanceCount : 0;
+  scores.contributionScore = contributionCount > 0 ? totalContribution / contributionCount : 0;
 
-  // Debug logging for category averages
-  console.log("Category Averages:");
-  console.log(`  Potential: ${scores.potential} (from ${potentialCount} questions)`);
-  console.log(`  Culture Harmony: ${scores.cultureHarmony} (from ${cultureCount} questions)`);
-  console.log(`  Team Effect: ${scores.teamEffect} (from ${teamCount} questions)`);
-  console.log(`  Executive Observation: ${scores.executiveObservation} (from ${executiveCount} questions)`);
+  // Calculate potentialScore (same as potential for now)
+  scores.potentialScore = scores.potential;
 
-  // Calculate scores using the new formulas:
-  // 1. Performance Score = KPI × 0.5 + Team Effect × 10
-  scores.performanceScore = (userKpi * 0.5) + (scores.teamEffect * 10);
-
-  // 2. Contribution Score = Performance × 0.5 + Culture Harmony × 10 × 0.3 + Executive Observation × 10 × 0.2
-  scores.contributionScore = 
-    (scores.performanceScore * 0.5) + 
-    (scores.cultureHarmony * 10 * 0.3) + 
-    (scores.executiveObservation * 10 * 0.2);
-
-  // 3. Potential Score = Potential × 20
-  scores.potentialScore = scores.potential * 20;
-
-  // 4. Keeper Score = Contribution × 0.6 + Potential × 0.4
-  scores.keeperScore = (scores.contributionScore * 0.6) + (scores.potentialScore * 0.4);
-
-  // Debug logging for calculated scores
-  console.log("Calculated Scores:");
-  console.log(`  Performance Score: ${scores.performanceScore}`);
-  console.log(`  Contribution Score: ${scores.contributionScore}`);
-  console.log(`  Potential Score: ${scores.potentialScore}`);
-  console.log(`  Keeper Score: ${scores.keeperScore}`);
-  console.log("=== END CALCULATION DEBUG ===\n");
+  // Calculate keeperScore (weighted average of key metrics)
+  // Keeper Score = (Performance * 0.3) + (Contribution * 0.3) + (Potential * 0.2) + (Culture * 0.1) + (Team * 0.1)
+  scores.keeperScore =
+    scores.performanceScore * 0.3 +
+    scores.contributionScore * 0.3 +
+    scores.potentialScore * 0.2 +
+    scores.cultureHarmony * 0.1 +
+    scores.teamEffect * 0.1;
 
   return scores;
 }
@@ -315,7 +202,7 @@ router.get("/", protect, async (req: any, res) => {
     // Note: We'll filter by department after populating employee
     
     const allResponses = await ResponseModel.find(responsesQuery)
-      .populate("employee", "name email role department kpi")
+      .populate("employee", "name email role department")
       .populate("survey", "title questions categories")
       .sort({ submittedAt: -1 });
     
@@ -340,9 +227,6 @@ router.get("/", protect, async (req: any, res) => {
 
     // Group responses by employee
     const employeeResultsMap = new Map();
-    
-    // Cache for employee KPIs to avoid multiple database queries for the same employee
-    const employeeKpiCache = new Map<string, number>();
 
     for (const response of responses) {
       const employee = response.employee as any;
@@ -371,16 +255,6 @@ router.get("/", protect, async (req: any, res) => {
       const department = employee.department || "N/A";
       const surveyTitle = survey.title || "Unknown Survey";
       
-      // Fetch latest KPI from database to ensure we have the most recent value
-      // This is important because KPI can be updated by admins
-      // Use cache to avoid multiple queries for the same employee
-      let userKpi = employeeKpiCache.get(employeeId);
-      if (userKpi === undefined) {
-        const userDoc = await User.findById(employee._id).select("kpi");
-        userKpi = userDoc?.kpi || 0;
-        employeeKpiCache.set(employeeId, userKpi);
-      }
-      
       // Create unique key for employee + survey combination
       const resultKey = `${employeeId}_${surveyId}`;
 
@@ -397,7 +271,7 @@ router.get("/", protect, async (req: any, res) => {
           date: response.submittedAt
             ? new Date(response.submittedAt).toLocaleDateString()
             : new Date().toLocaleDateString(),
-          kpiScore: userKpi, // Use KPI from database
+          kpiScore: 0,
           potential: 0,
           cultureHarmony: 0,
           teamEffect: 0,
@@ -424,20 +298,6 @@ router.get("/", protect, async (req: any, res) => {
       const employeeResult = employeeResultsMap.get(resultKey);
       if (!employeeResult) continue; // Safety check
 
-      // Only calculate scores for keeper surveys
-      const surveyTitleLower = (survey.title || "").toLowerCase();
-      const isKeeperSurvey = surveyTitleLower.includes("keeper");
-      
-      console.log(`\n📊 Processing survey: "${survey.title}" | Is Keeper: ${isKeeperSurvey}`);
-      
-      if (!isKeeperSurvey) {
-        // For non-keeper surveys, set scores to 0 or skip calculation
-        console.log(`  ⏭️ Skipping non-keeper survey: "${survey.title}"`);
-        continue; // Skip non-keeper surveys in the main results list
-      }
-      
-      console.log(`  ✅ Processing keeper survey for employee: ${employeeName}`);
-      
       // Calculate scores for this response
       // First try to get subcategories for the survey categories
       let questionsForCalculation = survey.questions || [];
@@ -451,8 +311,7 @@ router.get("/", protect, async (req: any, res) => {
           _id: subcat._id,
           text: subcat.name,
           name: subcat.name,
-          type: "", // Subcategories don't have type, will be categorized by category name
-          categoryName: subcat.categoryName || "" // Include category name for categorization
+          type: "" // Subcategories don't have type, will be categorized by name
         }));
       } else {
         // If survey has questions, also try to get subcategories to match answer IDs
@@ -463,23 +322,15 @@ router.get("/", protect, async (req: any, res) => {
           _id: subcat._id,
           text: subcat.name,
           name: subcat.name,
-          type: "",
-          categoryName: subcat.categoryName || "" // Include category name for categorization
+          type: ""
         }));
         questionsForCalculation = [...questionsForCalculation, ...subcategoryQuestions];
       }
       
-      // userKpi is already declared earlier in the scope
-      // Ensure answers is an array before calculating
-      const answers = Array.isArray(response.answers) ? response.answers : [];
-      const calculatedScores = calculateScores(answers, questionsForCalculation, userKpi);
-      
-      // Update kpiScore in the result entry (constant from database)
-      employeeResult.kpiScore = userKpi;
+      const calculatedScores = calculateScores(response.answers, questionsForCalculation);
 
       // Accumulate scores (we'll average them later)
-      // Note: kpiScore is not accumulated since it's the same for all responses (from database)
-      employeeResult.totalScores.kpiScore = userKpi; // Set directly, don't accumulate
+      employeeResult.totalScores.kpiScore += calculatedScores.kpiScore;
       employeeResult.totalScores.potential += calculatedScores.potential;
       employeeResult.totalScores.cultureHarmony += calculatedScores.cultureHarmony;
       employeeResult.totalScores.teamEffect += calculatedScores.teamEffect;
@@ -501,7 +352,7 @@ router.get("/", protect, async (req: any, res) => {
     }
 
     // Calculate averages for each employee+survey combination
-    const results = Array.from(employeeResultsMap.values()).map((result) => {
+    let results = Array.from(employeeResultsMap.values()).map((result) => {
       const count = result.responseCount || 1;
       return {
         _id: result._id,
@@ -512,18 +363,25 @@ router.get("/", protect, async (req: any, res) => {
         employeeName: result.employeeName,
         department: result.department,
         date: result.date,
-        kpiScore: result.kpiScore || 0, // Use KPI from database (constant, not averaged)
+        kpiScore: result.totalScores.kpiScore / count,
         potential: result.totalScores.potential / count,
         cultureHarmony: result.totalScores.cultureHarmony / count,
         teamEffect: result.totalScores.teamEffect / count,
         executiveObservation: result.totalScores.executiveObservation / count,
-        // These scores are already calculated using the new formulas in calculateScores
         performanceScore: result.totalScores.performanceScore / count,
         contributionScore: result.totalScores.contributionScore / count,
         potentialScore: result.totalScores.potentialScore / count,
         keeperScore: result.totalScores.keeperScore / count,
       };
     });
+
+    // Managers should not see results for "yönetici" (manager) surveys in the list
+    if (req.user.role === "manager") {
+      results = results.filter((r: any) => {
+        const title = (r.surveyTitle || "").toLowerCase();
+        return !title.includes("yönetici");
+      });
+    }
 
     res.json(results);
   } catch (error: any) {
@@ -540,7 +398,7 @@ router.get("/:employeeId", protect, async (req: any, res) => {
     // Get all submitted responses and filter by employee ID
     // This approach is more reliable as it handles different ID formats
     const allResponses = await ResponseModel.find({ status: "submitted" })
-      .populate("employee", "name email role department kpi")
+      .populate("employee", "name email role department")
       .populate("survey", "title questions categories")
       .sort({ submittedAt: -1 });
     
@@ -587,14 +445,7 @@ router.get("/:employeeId", protect, async (req: any, res) => {
     }
 
     // Calculate aggregated scores for this employee
-    // Only include keeper surveys for aggregated calculations
     const employee = responses[0].employee as any;
-    
-    // Fetch user's KPI from database (always fetch fresh to get latest value)
-    const userDoc = await User.findById(employee._id).select("kpi");
-    const userKpi = userDoc?.kpi || 0;
-    console.log(`📊 Fetching results for employee ${employee._id}: KPI = ${userKpi}`);
-    
     let totalScores = {
       kpiScore: 0,
       potential: 0,
@@ -607,7 +458,13 @@ router.get("/:employeeId", protect, async (req: any, res) => {
       keeperScore: 0,
     };
 
-    let keeperResponseCount = 0;
+    // Simple averages for specific survey types
+    // Average of all numeric answers from "yönetici" (manager) forms
+    let managerFormTotal = 0;
+    let managerFormCount = 0;
+    // Average of all numeric answers from "takım arkadaşı" (teammate) forms
+    let teammateFormTotal = 0;
+    let teammateFormCount = 0;
 
     for (const response of responses) {
       const survey = response.survey as any;
@@ -615,14 +472,10 @@ router.get("/:employeeId", protect, async (req: any, res) => {
       // Skip if survey is null
       if (!survey || !survey._id) continue;
       
-      // Only calculate scores for keeper surveys
       const surveyTitle = (survey.title || "").toLowerCase();
-      const isKeeperSurvey = surveyTitle.includes("keeper");
-      
-      if (!isKeeperSurvey) {
-        continue; // Skip non-keeper surveys
-      }
-      
+      const isManagerForm = surveyTitle.includes("yönetici");
+      const isTeammateForm = surveyTitle.includes("takım arkadaşı");
+
       // Get questions/subcategories for calculation
       let questionsForCalculation = survey.questions || [];
       
@@ -635,8 +488,7 @@ router.get("/:employeeId", protect, async (req: any, res) => {
           _id: subcat._id,
           text: subcat.name,
           name: subcat.name,
-          type: "",
-          categoryName: subcat.categoryName || "" // Include category name for categorization
+          type: ""
         }));
       } else {
         // If survey has questions, also try to get subcategories to match answer IDs
@@ -652,27 +504,32 @@ router.get("/:employeeId", protect, async (req: any, res) => {
         questionsForCalculation = [...questionsForCalculation, ...subcategoryQuestions];
       }
       
-      // Ensure answers is an array before calculating
-      const answers = Array.isArray(response.answers) ? response.answers : [];
-      console.log(`   📊 Calculating scores for survey "${survey.title}" with KPI: ${userKpi}`);
-      const calculatedScores = calculateScores(answers, questionsForCalculation, userKpi);
-      console.log(`   ✅ Calculated scores: Performance=${calculatedScores.performanceScore.toFixed(2)}, Contribution=${calculatedScores.contributionScore.toFixed(2)}, Keeper=${calculatedScores.keeperScore.toFixed(2)}`);
+      const calculatedScores = calculateScores(response.answers, questionsForCalculation);
 
-      // Accumulate scores (except kpiScore which is constant from database)
-      totalScores.potential += calculatedScores.potential;
-      totalScores.cultureHarmony += calculatedScores.cultureHarmony;
-      totalScores.teamEffect += calculatedScores.teamEffect;
-      totalScores.executiveObservation += calculatedScores.executiveObservation;
-      totalScores.performanceScore += calculatedScores.performanceScore;
-      totalScores.contributionScore += calculatedScores.contributionScore;
-      totalScores.potentialScore += calculatedScores.potentialScore;
-      totalScores.keeperScore += calculatedScores.keeperScore;
-      // kpiScore is constant (from database), don't accumulate
-      
-      keeperResponseCount++;
+      Object.keys(totalScores).forEach((key) => {
+        totalScores[key as keyof typeof totalScores] += calculatedScores[key as keyof typeof calculatedScores];
+      });
+
+      // Also accumulate simple averages for manager / teammate forms
+      const rawAnswers = Array.isArray(response.answers) ? response.answers : [];
+      for (const ans of rawAnswers) {
+        const rawValue = (ans as any).value;
+        const numValue =
+          typeof rawValue === "number" ? rawValue : parseFloat(rawValue);
+        if (isNaN(numValue)) continue;
+
+        if (isManagerForm) {
+          managerFormTotal += numValue;
+          managerFormCount++;
+        }
+        if (isTeammateForm) {
+          teammateFormTotal += numValue;
+          teammateFormCount++;
+        }
+      }
     }
 
-    const count = keeperResponseCount || 1; // Use keeper survey count, not all responses
+    const count = responses.length;
     const result = {
       _id: employee._id.toString(),
       id: employee._id.toString(),
@@ -681,7 +538,7 @@ router.get("/:employeeId", protect, async (req: any, res) => {
       date: responses[0].submittedAt
         ? new Date(responses[0].submittedAt).toLocaleDateString()
         : new Date().toLocaleDateString(),
-      kpiScore: userKpi, // Use KPI from database, not calculated from survey
+      kpiScore: totalScores.kpiScore / count,
       potential: totalScores.potential / count,
       cultureHarmony: totalScores.cultureHarmony / count,
       teamEffect: totalScores.teamEffect / count,
@@ -690,6 +547,11 @@ router.get("/:employeeId", protect, async (req: any, res) => {
       contributionScore: totalScores.contributionScore / count,
       potentialScore: totalScores.potentialScore / count,
       keeperScore: totalScores.keeperScore / count,
+      managerFormAverage:
+        managerFormCount > 0 ? managerFormTotal / managerFormCount : 0,
+      teammateFormAverage:
+        teammateFormCount > 0 ? teammateFormTotal / teammateFormCount : 0,
+      role: employee.role,
     };
 
     res.json(result);

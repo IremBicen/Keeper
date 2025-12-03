@@ -35,6 +35,7 @@ export default function SurveyForm({ survey, onClose, onSubmit }: SurveyFormProp
     const surveyCategories = survey.categories;
     const [errors, setErrors] = useState<{ ratings?: string; teammate?: string; manager?: string }>({});
     const [ratings, setRatings] = useState<{ [key: string]: number }>({});
+    const [textAnswers, setTextAnswers] = useState<{ [key: string]: string }>({});
     const [loadingSubcategories, setLoadingSubcategories] = useState(true);
     
     // Teammate/Manager selection states
@@ -68,13 +69,37 @@ export default function SurveyForm({ survey, onClose, onSubmit }: SurveyFormProp
                 0
             );
             
-            if (Object.keys(newRatings).length === totalSubcategories) {
+            const answeredCount = Object.keys(newRatings).length + Object.keys(textAnswers).length;
+
+            if (answeredCount === totalSubcategories) {
                 setErrors(prevErrors => {
                     const { ratings, ...rest } = prevErrors;
                     return rest;
                 });
             }
             return newRatings;
+        });
+    };
+    
+    const handleTextChange = (subcategoryId: string, value: string) => {
+        setTextAnswers(prev => {
+            const newText = { ...prev, [subcategoryId]: value };
+
+            const totalSubcategories = categoriesWithSubcategories.reduce(
+                (total, cat) => total + cat.subcategories.length, 
+                0
+            );
+
+            const answeredCount = Object.keys(ratings).length + Object.keys(newText).length;
+
+            if (answeredCount === totalSubcategories) {
+                setErrors(prevErrors => {
+                    const { ratings, ...rest } = prevErrors;
+                    return rest;
+                });
+            }
+
+            return newText;
         });
     };
     
@@ -245,7 +270,18 @@ export default function SurveyForm({ survey, onClose, onSubmit }: SurveyFormProp
         if (surveyId) {
             const savedDraft = localStorage.getItem(`survey_draft_${surveyId}`);
             if (savedDraft) {
-                setRatings(JSON.parse(savedDraft));
+                try {
+                    const parsed = JSON.parse(savedDraft);
+                    if (parsed && typeof parsed === "object" && ("ratings" in parsed || "textAnswers" in parsed)) {
+                        setRatings(parsed.ratings || {});
+                        setTextAnswers(parsed.textAnswers || {});
+                    } else {
+                        // backwards compatibility with old format (just ratings map)
+                        setRatings(parsed);
+                    }
+                } catch {
+                    // ignore invalid draft
+                }
             }
         }
     }, [survey._id, survey.id]);
@@ -265,12 +301,21 @@ export default function SurveyForm({ survey, onClose, onSubmit }: SurveyFormProp
         }
 
         if (status === 'Draft') {   // For drafts, just save and close without validation
-            localStorage.setItem(`survey_draft_${survey._id || survey.id}`, JSON.stringify(ratings));
+            localStorage.setItem(
+                `survey_draft_${survey._id || survey.id}`,
+                JSON.stringify({ ratings, textAnswers })
+            );
             // Still submit as draft to backend
-            const answers = Object.entries(ratings).map(([key, value]) => ({
-                questionId: key,
-                value: value
-            }));
+            const answers = [
+                ...Object.entries(ratings).map(([key, value]) => ({
+                    questionId: key,
+                    value: value
+                })),
+                ...Object.entries(textAnswers).map(([key, value]) => ({
+                    questionId: key,
+                    value: value
+                })),
+            ];
             const selectedId = selectedTeammateId || selectedManagerId;
             onSubmit(survey, status, answers, selectedId);
             return;
@@ -283,26 +328,31 @@ export default function SurveyForm({ survey, onClose, onSubmit }: SurveyFormProp
                 0
             );
             
+            const answeredCount = Object.keys(ratings).length + Object.keys(textAnswers).length;
+
             if (totalSubcategories > 0) {
-                if (Object.keys(ratings).length < totalSubcategories) {
-                    newErrors.ratings = "Please provide a rating for all questions.";
+                if (answeredCount < totalSubcategories) {
+                    newErrors.ratings = "Please answer all questions.";
                 }
-            } else if (Object.keys(ratings).length === 0) {
-                newErrors.ratings = "Please provide at least one rating.";
+            } else if (answeredCount === 0) {
+                newErrors.ratings = "Please answer at least one question.";
             }
         }
 
         if (Object.keys(newErrors).length > 0) {
             setErrors(newErrors);
         } else {
-            // Convert ratings to answers format for backend
-            // Key is subcategory ID, value is the rating
-            const answers = Object.entries(ratings).map(([subcategoryId, value]) => {
-                return {
-                    questionId: subcategoryId, // Use subcategory ID as questionId
+            // Convert ratings / text answers to answers format for backend
+            const answers = [
+                ...Object.entries(ratings).map(([subcategoryId, value]) => ({
+                    questionId: subcategoryId,
                     value: value
-                };
-            });
+                })),
+                ...Object.entries(textAnswers).map(([subcategoryId, value]) => ({
+                    questionId: subcategoryId,
+                    value: value
+                })),
+            ];
             
             // If submission is successful, remove any saved draft
             localStorage.removeItem(`survey_draft_${survey._id || survey.id}`);
@@ -408,8 +458,24 @@ export default function SurveyForm({ survey, onClose, onSubmit }: SurveyFormProp
                                             {category.subcategories.length > 0 ? (
                                                 <div className="subcategories-list">
                                                     {category.subcategories.map((subcategory) => {
-                                                        const minRating = subcategory.minRating || 1;
-                                                        const maxRating = subcategory.maxRating || 5;
+                                                        const isTextQuestion = subcategory.type === "text";
+
+                                                        if (isTextQuestion) {
+                                                            return (
+                                                                <div key={subcategory._id} className="subcategory-item">
+                                                                    <p className="subcategory-name">{subcategory.name}</p>
+                                                                    <textarea
+                                                                        className="short-answer-input"
+                                                                        value={textAnswers[subcategory._id] || ""}
+                                                                        onChange={(e) => handleTextChange(subcategory._id, e.target.value)}
+                                                                        placeholder="Type your answer..."
+                                                                    />
+                                                                </div>
+                                                            );
+                                                        }
+
+                                                        const minRating = subcategory.minRating ?? 1;
+                                                        const maxRating = subcategory.maxRating ?? 5;
                                                         const ratingOptions = [];
                                                         for (let i = minRating; i <= maxRating; i++) {
                                                             ratingOptions.push(i);

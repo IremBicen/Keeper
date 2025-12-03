@@ -2,8 +2,9 @@ import mongoose, { Schema, Document } from "mongoose";
 
 export interface ISubcategory extends Document {
   name: string;
-  minRating: number;
-  maxRating: number;
+  type: "rating" | "text";
+  minRating?: number;
+  maxRating?: number;
   category: mongoose.Types.ObjectId;
   createdAt?: Date;
   updatedAt?: Date;
@@ -12,8 +13,13 @@ export interface ISubcategory extends Document {
 const SubcategorySchema: Schema = new Schema(
   {
     name: { type: String, required: true },
-    minRating: { type: Number, required: true, min: 0 },
-    maxRating: { type: Number, required: true, min: 0 },
+    type: {
+      type: String,
+      enum: ["rating", "text"],
+      default: "rating",
+    },
+    minRating: { type: Number, min: 0 },
+    maxRating: { type: Number, min: 0 },
     category: { type: Schema.Types.ObjectId, ref: "Category", required: true }
   },
   { timestamps: true }

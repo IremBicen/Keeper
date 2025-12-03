@@ -30,19 +30,34 @@ router.get("/category/:categoryId", protect, async (req, res) => {
 // POST create new subcategory
 router.post("/", protect, authorize("admin"), async (req, res) => {
   try {
-    const { name, minRating, maxRating, category } = req.body;
+    const { name, minRating, maxRating, category, type } = req.body;
 
-    // Validation
-    if (!name || minRating === undefined || maxRating === undefined || !category) {
+    // Basic validation
+    if (!name || !category) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    if (minRating > maxRating) {
-      return res.status(400).json({ message: "Max rating cannot be less than min rating" });
-    }
+    const questionType = type === "text" ? "text" : "rating";
 
-    if (minRating === maxRating) {
-      return res.status(400).json({ message: "Min and Max ratings cannot be equal" });
+    // Validation for rating questions
+    if (questionType === "rating") {
+      if (minRating === undefined || maxRating === undefined) {
+        return res
+          .status(400)
+          .json({ message: "Min and Max ratings are required for rating questions" });
+      }
+
+      if (minRating > maxRating) {
+        return res
+          .status(400)
+          .json({ message: "Max rating cannot be less than min rating" });
+      }
+
+      if (minRating === maxRating) {
+        return res
+          .status(400)
+          .json({ message: "Min and Max ratings cannot be equal" });
+      }
     }
 
     // Verify category exists
@@ -53,9 +68,9 @@ router.post("/", protect, authorize("admin"), async (req, res) => {
 
     const subcategory = await Subcategory.create({
       name: name.trim(),
-      minRating,
-      maxRating,
-      category
+      type: questionType,
+      ...(questionType === "rating" ? { minRating, maxRating } : {}),
+      category,
     });
 
     await subcategory.populate("category", "name");
@@ -68,15 +83,21 @@ router.post("/", protect, authorize("admin"), async (req, res) => {
 // PUT update subcategory
 router.put("/:id", protect, authorize("admin"), async (req, res) => {
   try {
-    const { name, minRating, maxRating } = req.body;
+    const { name, minRating, maxRating, type } = req.body;
 
-    // Validation
-    if (minRating !== undefined && maxRating !== undefined) {
+    const questionType = type === "text" ? "text" : "rating";
+
+    // Validation for rating questions
+    if (questionType === "rating" && minRating !== undefined && maxRating !== undefined) {
       if (minRating > maxRating) {
-        return res.status(400).json({ message: "Max rating cannot be less than min rating" });
+        return res
+          .status(400)
+          .json({ message: "Max rating cannot be less than min rating" });
       }
       if (minRating === maxRating) {
-        return res.status(400).json({ message: "Min and Max ratings cannot be equal" });
+        return res
+          .status(400)
+          .json({ message: "Min and Max ratings cannot be equal" });
       }
     }
 
@@ -84,8 +105,10 @@ router.put("/:id", protect, authorize("admin"), async (req, res) => {
       req.params.id,
       {
         ...(name && { name: name.trim() }),
-        ...(minRating !== undefined && { minRating }),
-        ...(maxRating !== undefined && { maxRating })
+        type: questionType,
+        ...(questionType === "rating" && minRating !== undefined && { minRating }),
+        ...(questionType === "rating" && maxRating !== undefined && { maxRating }),
+        ...(questionType === "text" && { minRating: undefined, maxRating: undefined }),
       },
       { new: true }
     ).populate("category", "name");

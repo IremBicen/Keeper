@@ -136,6 +136,21 @@ export default function SurveyPreview({ survey, onClose }: SurveyPreviewProps) {
                                             <div className="preview-subcategories-list">
                                                 {category.subcategories.length > 0 ? (
                                                     category.subcategories.map((subcategory) => {
+                                                        const isTextQuestion = subcategory.type === "text";
+
+                                                        if (isTextQuestion) {
+                                                            return (
+                                                                <div key={subcategory._id} className="preview-subcategory-item">
+                                                                    <p className="preview-subcategory-name">{subcategory.name}</p>
+                                                                    <textarea
+                                                                        className="short-answer-input"
+                                                                        placeholder="Short answer (preview)"
+                                                                        disabled
+                                                                    />
+                                                                </div>
+                                                            );
+                                                        }
+
                                                         const minRating = subcategory.minRating || 1;
                                                         const maxRating = subcategory.maxRating || 5;
                                                         const ratingOptions = [];

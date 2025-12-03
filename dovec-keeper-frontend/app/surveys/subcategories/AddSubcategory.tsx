@@ -29,6 +29,7 @@ export default function AddSubcategory({
     categories[0]?._id || categories[0]?.id || ""
   );
   const [name, setName] = useState("");
+  const [questionType, setQuestionType] = useState<"rating" | "text">("rating");
   const [minRating, setMinRating] = useState(1);
   const [maxRating, setMaxRating] = useState(5);
   const [errors, setErrors] = useState<FormErrors>({}); // Error messages for the form
@@ -50,16 +51,23 @@ export default function AddSubcategory({
       newErrors.missingName = "Subcategory name cannot be empty.";
     }
 
-    if (minRating > maxRating) {
-      newErrors.wrongeRating = "Max rating cannot be less than min rating.";
-    } else if (minRating === maxRating) {
-      newErrors.wrongeRating = "Min and Max ratings cannot be equal.";
+    if (questionType === "rating") {
+      if (minRating > maxRating) {
+        newErrors.wrongeRating = "Max rating cannot be less than min rating.";
+      } else if (minRating === maxRating) {
+        newErrors.wrongeRating = "Min and Max ratings cannot be equal.";
+      }
     }
 
     setErrors(newErrors);
 
     if (Object.keys(newErrors).length === 0) {
-      onAdd({ name, minRating, maxRating }, selectedCategoryId);
+      onAdd(
+        questionType === "rating"
+          ? { name, type: "rating", minRating, maxRating }
+          : { name, type: "text" },
+        selectedCategoryId
+      );
     }
   };
 
@@ -105,33 +113,57 @@ export default function AddSubcategory({
             {errors.missingName && <p className="error-message">{errors.missingName}</p>}
           </div>
           <div className="form-group-subcategory">
-            <div className="rating-group-subcategories">
-              <div>
-                <label htmlFor="minRating">Min Rating</label>
-                <input
-                  type="number"
-                  id="minRating"
-                  name="minRating"
-                  value={minRating}
-                  onChange={(e) => setMinRating(Number(e.target.value))}
-                  min="0"
-                />
-              </div>
-              <div>
-                <label htmlFor="maxRating">Max Rating</label>
-                <input
-                  type="number"
-                  id="maxRating"
-                  name="maxRating"
-                  value={maxRating}
-                  onChange={(e) => setMaxRating(Number(e.target.value))}
-                  min="0"
-                />
-              </div>
+            <label htmlFor="questionType">Question Type</label>
+            <div className="select-wrapper">
+              <select
+                id="questionType"
+                name="questionType"
+                value={questionType}
+                onChange={(e) =>
+                  setQuestionType(e.target.value as "rating" | "text")
+                }
+                className="form-select"
+              >
+                <option value="rating">Rating (scale)</option>
+                <option value="text">Short Answer (text)</option>
+              </select>
+              <FaChevronDown className="select-icon" />
             </div>
           </div>
-          {errors.wrongeRating && (
-            <p className="error-message rating-error">{errors.wrongeRating}</p>
+          {questionType === "rating" && (
+            <>
+              <div className="form-group-subcategory">
+                <div className="rating-group-subcategories">
+                  <div>
+                    <label htmlFor="minRating">Min Rating</label>
+                    <input
+                      type="number"
+                      id="minRating"
+                      name="minRating"
+                      value={minRating}
+                      onChange={(e) => setMinRating(Number(e.target.value))}
+                      min="0"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="maxRating">Max Rating</label>
+                    <input
+                      type="number"
+                      id="maxRating"
+                      name="maxRating"
+                      value={maxRating}
+                      onChange={(e) => setMaxRating(Number(e.target.value))}
+                      min="0"
+                    />
+                  </div>
+                </div>
+              </div>
+              {errors.wrongeRating && (
+                <p className="error-message rating-error">
+                  {errors.wrongeRating}
+                </p>
+              )}
+            </>
           )}
           <div className="modal-footer">
             <button type="button" onClick={onClose} className="btn btn-light">

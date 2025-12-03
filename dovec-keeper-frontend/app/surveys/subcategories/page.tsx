@@ -113,6 +113,7 @@ export default function SubcategoriesPage() {
     try {
       await api.put(`/subcategories/${updatedSubcategory._id}`, {
         name: updatedSubcategory.name,
+        type: updatedSubcategory.type,
         minRating: updatedSubcategory.minRating,
         maxRating: updatedSubcategory.maxRating,
       }, {
@@ -144,6 +145,7 @@ export default function SubcategoriesPage() {
     try {
       await api.post("/subcategories", {
         name: newSubcategory.name,
+        type: newSubcategory.type,
         minRating: newSubcategory.minRating,
         maxRating: newSubcategory.maxRating,
         category: categoryId,
@@ -247,6 +249,7 @@ export default function SubcategoriesPage() {
                   <th>Category Name</th>
                   <th>Subcategory Name</th>
                   <th>Date Added</th>
+                  <th>Question Type</th>
                   <th>Rating Range</th>
                   <th>Action</th>
                 </tr>
@@ -254,13 +257,13 @@ export default function SubcategoriesPage() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={5} style={{ textAlign: "center", padding: "20px" }}>
+                    <td colSpan={6} style={{ textAlign: "center", padding: "20px" }}>
                       Loading...
                     </td>
                   </tr>
                 ) : filteredData.length === 0 ? (
                   <tr>
-                    <td colSpan={5} style={{ textAlign: "center", padding: "20px" }}>
+                    <td colSpan={6} style={{ textAlign: "center", padding: "20px" }}>
                       No subcategories found.
                     </td>
                   </tr>
@@ -271,7 +274,12 @@ export default function SubcategoriesPage() {
                         <td>{category.name}</td>
                         <td>{subcategory.name}</td>
                         <td>{subcategory.dateAdded || (subcategory.createdAt ? new Date(subcategory.createdAt).toLocaleDateString() : "N/A")}</td>
-                        <td>{`${subcategory.minRating}-${subcategory.maxRating}`}</td>
+                        <td>{subcategory.type === "text" ? "Short answer" : "Rating"}</td>
+                        <td>
+                          {subcategory.type === "text"
+                            ? "—"
+                            : `${subcategory.minRating ?? 1}-${subcategory.maxRating ?? 5}`}
+                        </td>
                         <td>
                           <button
                             className="btn btn-edit"

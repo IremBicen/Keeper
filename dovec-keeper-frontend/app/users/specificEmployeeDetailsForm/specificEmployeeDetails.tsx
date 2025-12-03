@@ -77,6 +77,7 @@ export default function SpecificEmployeeDetails({
                     employeeId: userData._id,
                     employeeName: userData.name,
                     department: userData.department || 'N/A',
+                    role: userData.role,
                     date: userData.updatedAt
                         ? new Date(userData.updatedAt).toLocaleDateString()
                         : new Date().toLocaleDateString(),
@@ -90,6 +91,8 @@ export default function SpecificEmployeeDetails({
                     contributionScore: 0,
                     potentialScore: 0,
                     keeperScore: 0,
+                    managerFormAverage: 0,
+                    teammateFormAverage: 0,
                 };
 
                 setUserKpi(userData.kpi);
@@ -440,6 +443,7 @@ export default function SpecificEmployeeDetails({
                     )}
                 </div>
             </div>
+            <h3 className="score-group-header" style={{ marginTop: '1rem' }}>Calculated Scores (Keeper)</h3>
             <div className="scores-grid">
                 <div className="form-group"><label>Potential</label><input type="text" value={employee.potential?.toFixed(1) || '0.0'} readOnly /></div>
                 <div className="form-group"><label>Culture Harmony</label><input type="text" value={employee.cultureHarmony?.toFixed(1) || '0.0'} readOnly /></div>
@@ -450,10 +454,46 @@ export default function SpecificEmployeeDetails({
                 <div className="form-group"><label>Potential Score</label><input type="text" value={employee.potentialScore?.toFixed(1) || '0.0'} readOnly /></div>
                 <div className="form-group"><label>Keeper Score</label><input type="text" value={employee.keeperScore?.toFixed(1) || '0.0'} readOnly /></div>
             </div>
+
+            {user?.role === 'admin' && (
+                <>
+                    {employee.role === 'manager' && (
+                        <>
+                            <h3 className="score-group-header" style={{ marginTop: '1rem' }}>Manager Evaluation (Yönetici Forms)</h3>
+                            <div className="scores-grid">
+                                <div className="form-group">
+                                    <label>Yönetici Form Average</label>
+                                    <input
+                                        type="text"
+                                        value={(employee.managerFormAverage ?? 0).toFixed(1)}
+                                        readOnly
+                                    />
+                                </div>
+                            </div>
+                        </>
+                    )}
+                    {employee.role === 'employee' && (
+                        <>
+                            <h3 className="score-group-header" style={{ marginTop: '1rem' }}>Teammate Evaluation (Takım Arkadaşı Forms)</h3>
+                            <div className="scores-grid">
+                                <div className="form-group">
+                                    <label>Takım Arkadaşı Form Average</label>
+                                    <input
+                                        type="text"
+                                        value={(employee.teammateFormAverage ?? 0).toFixed(1)}
+                                        readOnly
+                                    />
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </>
+            )}
         </div>
     );
 
-    const pageContent = ( //Content for the container (Users page)
+    // Content for the container (Users page)
+    const pageContent = (
         <div className="user-detail-form">
             <div className="summary-bar">
                 <div className="summary-item">
@@ -553,11 +593,31 @@ export default function SpecificEmployeeDetails({
                     <tr><td>Keeper Score</td><td>{employee.keeperScore?.toFixed(1) || '0.0'}</td></tr>
 
                     {/* The following rows are for the survey average scores */}
-                    <tr><td colSpan={2} className="score-group-header">Survey Average Scores</td></tr>
+                    <tr><td colSpan={2} className="score-group-header">Survey Average Scores (Keeper)</td></tr>
                     <tr><td>Potential</td><td>{employee.potential?.toFixed(1) || '0.0'}</td></tr>
                     <tr><td>Culture Harmony</td><td>{employee.cultureHarmony?.toFixed(1) || '0.0'}</td></tr>
                     <tr><td>Team Effect</td><td>{employee.teamEffect?.toFixed(1) || '0.0'}</td></tr>
                     <tr><td>Executive Observation</td><td>{employee.executiveObservation?.toFixed(1) || '0.0'}</td></tr>
+
+                    {/* Extra sections for manager / teammate forms (admin only) */}
+                    {user?.role === 'admin' && employee.role === 'manager' && (
+                        <>
+                            <tr><td colSpan={2} className="score-group-header">Manager Evaluation (Yönetici Forms)</td></tr>
+                            <tr>
+                                <td>Yönetici Form Average</td>
+                                <td>{(employee.managerFormAverage ?? 0).toFixed(1)}</td>
+                            </tr>
+                        </>
+                    )}
+                    {user?.role === 'admin' && employee.role === 'employee' && (
+                        <>
+                            <tr><td colSpan={2} className="score-group-header">Teammate Evaluation (Takım Arkadaşı Forms)</td></tr>
+                            <tr>
+                                <td>Takım Arkadaşı Form Average</td>
+                                <td>{(employee.teammateFormAverage ?? 0).toFixed(1)}</td>
+                            </tr>
+                        </>
+                    )}
                 </tbody>
             </table>
         </div>

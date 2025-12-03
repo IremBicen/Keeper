@@ -6,6 +6,7 @@ export interface EmployeeResult {
   employeeName: string;
   department: string;
   profilePicture?: string;
+  role?: string;
   surveyId?: string;
   surveyTitle?: string; // Form/Survey name
   date: string;
@@ -19,5 +20,7 @@ export interface EmployeeResult {
   contributionScore: number;
   potentialScore: number;
   keeperScore: number;
+  managerFormAverage?: number;
+  teammateFormAverage?: number;
 }
 

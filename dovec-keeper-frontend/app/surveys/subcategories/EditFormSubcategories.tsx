@@ -58,10 +58,12 @@ export default function EditFormSubcategories({
       newErrors.missingName = "Subcategory name cannot be empty.";
     }
 
-    if (formData.minRating > formData.maxRating) {
-      newErrors.wrongeRating = "Max rating cannot be less than min rating.";
-    } else if (formData.minRating === formData.maxRating) {
-      newErrors.wrongeRating = "Min and Max ratings cannot be equal.";
+    if (formData.type !== "text" && formData.minRating != null && formData.maxRating != null) {
+      if (formData.minRating > formData.maxRating) {
+        newErrors.wrongeRating = "Max rating cannot be less than min rating.";
+      } else if (formData.minRating === formData.maxRating) {
+        newErrors.wrongeRating = "Min and Max ratings cannot be equal.";
+      }
     }
 
     setErrors(newErrors);
@@ -104,33 +106,39 @@ export default function EditFormSubcategories({
             {errors.missingName && <p className="error-message">{errors.missingName}</p>}
           </div>
           <div className="form-group-subcategory">
-            <div className="rating-group-subcategories">
-              <div>
-                <label htmlFor="minRating">Min Rating</label>
-                <input
-                  type="number"
-                  id="minRating"
-                  name="minRating"
-                  value={formData.minRating}
-                  onChange={handleChange}
-                  min="0"
-                  className="read-only-input-subcategories"
-                />
+            {formData.type === "text" ? (
+              <p className="read-only-input-subcategories">
+                This is a short answer question. No rating range is required.
+              </p>
+            ) : (
+              <div className="rating-group-subcategories">
+                <div>
+                  <label htmlFor="minRating">Min Rating</label>
+                  <input
+                    type="number"
+                    id="minRating"
+                    name="minRating"
+                    value={formData.minRating}
+                    onChange={handleChange}
+                    min="0"
+                    className="read-only-input-subcategories"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="maxRating">Max Rating</label>
+                  <input
+                    type="number"
+                    id="maxRating"
+                    name="maxRating"
+                    value={formData.maxRating}
+                    onChange={handleChange}
+                    min="0"
+                  />
+                </div>
               </div>
-              <div>
-                <label htmlFor="maxRating">Max Rating</label>
-                <input
-                  type="number"
-                  id="maxRating"
-                  name="maxRating"
-                  value={formData.maxRating}
-                  onChange={handleChange}
-                  min="0"
-                />
-              </div>
-            </div>
+            )}
           </div>
-          {errors.wrongeRating && (
+          {formData.type !== "text" && errors.wrongeRating && (
             <p className="error-message rating-error">{errors.wrongeRating}</p>
           )}
           <div className="edit-subcategory-footer">

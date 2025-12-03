@@ -2,8 +2,9 @@ export interface Subcategory {
   _id: string;
   id?: string; // For compatibility
   name: string;
-  minRating: number;
-  maxRating: number;
+  type?: "rating" | "text";
+  minRating?: number;
+  maxRating?: number;
   category: string | { _id: string; name: string }; // Category ID or populated category object
   createdAt?: string;
   updatedAt?: string;
@@ -13,8 +14,9 @@ export interface Subcategory {
 
 export interface CreateSubcategoryData {
   name: string;
-  minRating: number;
-  maxRating: number;
+  type?: "rating" | "text";
+  minRating?: number;
+  maxRating?: number;
   category: string; // Category ID
 }
 

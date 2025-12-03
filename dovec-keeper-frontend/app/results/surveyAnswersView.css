@@ -93,8 +93,8 @@
 
 /* Override form styles for read-only display - Dark Theme */
 .survey-answers-content .form-header {
-  padding: 0;
-  border-bottom: none;
+  padding: 1.5rem 2.5rem;
+  border-bottom: 1px solid #374151;
   margin-bottom: 0;
 }
 

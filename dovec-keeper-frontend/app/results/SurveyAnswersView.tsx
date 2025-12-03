@@ -201,6 +201,36 @@ export default function SurveyAnswersView({
                 <h3 className="category-title">{category.name}</h3>
                 {category.subcategories.map((subcategory) => {
                   const answer = answerMap.get(subcategory._id);
+                  const isTextQuestion = subcategory.type === "text";
+
+                  if (isTextQuestion) {
+                    return (
+                      <div key={subcategory._id} className="subcategory-item">
+                        <p className="subcategory-name">{subcategory.name}</p>
+                        <div
+                          style={{
+                            marginTop: '0.75rem',
+                            padding: '0.75rem 1rem',
+                            background: '#020617',
+                            border: '1px solid #1f2937',
+                            borderRadius: '6px',
+                            minHeight: '3rem',
+                            maxWidth: '48rem',
+                            whiteSpace: 'pre-wrap',
+                            color: '#e5e7eb',
+                            fontSize: '0.95rem',
+                          }}
+                        >
+                          {answer === undefined || answer === null || answer === "" ? (
+                            <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>No answer provided</span>
+                          ) : (
+                            <span>{answer}</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  }
+
                   const minRating = subcategory.minRating || 1;
                   const maxRating = subcategory.maxRating || 5;
                   
