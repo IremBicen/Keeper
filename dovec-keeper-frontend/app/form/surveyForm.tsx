@@ -183,7 +183,7 @@ export default function SurveyForm({ survey, onClose, onSubmit }: SurveyFormProp
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 
-                // Filter teammates: same department, exclude self, employee/manager roles
+                // Filter teammates: same department, exclude self, only employees (no managers)
                 const allUsers = res.data || [];
                 const userDepartment = user.department || (user as any)?.department;
                 
@@ -206,7 +206,7 @@ export default function SurveyForm({ survey, onClose, onSubmit }: SurveyFormProp
                     
                     const isSameDepartment = userDept === teammateDept && userDept !== '';
                     const isNotSelf = uId !== userId;
-                    const isValidRole = u.role === 'employee' || u.role === 'manager';
+                    const isValidRole = u.role === 'employee'; // only employees can be evaluated in teammate surveys
                     
                     return isSameDepartment && isNotSelf && isValidRole;
                 });
