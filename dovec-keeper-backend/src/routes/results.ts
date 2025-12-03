@@ -117,9 +117,11 @@ function calculateScores(answers: any[], questions: any[]) {
       const answerKeys = Array.from(answerMap.keys());
       for (const key of answerKeys) {
         // Check if key matches the question ID
-        if (key.toString() === questionId.toString() || 
-            key.toString().endsWith(questionId) || 
-            key.toString().includes(questionId)) {
+        if (
+          key.toString() === questionId.toString() ||
+          key.toString().endsWith(questionId) ||
+          key.toString().includes(questionId)
+        ) {
           answerValue = answerMap.get(key);
           break;
         }
@@ -130,39 +132,83 @@ function calculateScores(answers: any[], questions: any[]) {
       return;
     }
 
-    const numValue = typeof answerValue === "number" ? answerValue : parseFloat(answerValue);
+    const numValue =
+      typeof answerValue === "number" ? answerValue : parseFloat(answerValue);
     if (isNaN(numValue)) return;
 
     // For subcategories, use the name; for questions, use text
-    const questionText = ((question.name || question.text || "").toLowerCase());
+    const questionText = (question.name || question.text || "").toLowerCase();
     const questionType = (question.type || "").toLowerCase();
+    const categoryName = (question.categoryName || "").toLowerCase();
 
-    // Categorize questions based on type and text
-    if (questionType === "kpi" || questionText.includes("kpi")) {
+    // Categorize questions based on type, text and category name
+    const isKpi =
+      questionType === "kpi" ||
+      questionText.includes("kpi") ||
+      categoryName.includes("kpi");
+
+    const isPotential =
+      questionType === "potential" ||
+      questionText.includes("potential") ||
+      categoryName.includes("potential") ||
+      categoryName.includes("potansiyel");
+
+    const isCulture =
+      questionText.includes("culture harmony") ||
+      questionText.includes("culture") ||
+      questionText.includes("harmony") ||
+      categoryName.includes("culture harmony") ||
+      categoryName.includes("culture") ||
+      categoryName.includes("harmony") ||
+      categoryName.includes("kültür uyumu") ||
+      categoryName.includes("kültür");
+
+    const isTeam =
+      questionText.includes("team effect") ||
+      questionText.includes("team") ||
+      questionText.includes("collaboration") ||
+      categoryName.includes("team effect") ||
+      categoryName.includes("team") ||
+      categoryName.includes("takım");
+
+    const isExecutive =
+      questionText.includes("executive observation") ||
+      questionText.includes("executive") ||
+      questionText.includes("observation") ||
+      categoryName.includes("executive observation") ||
+      categoryName.includes("executive") ||
+      categoryName.includes("observation") ||
+      categoryName.includes("yönetici gözlemi") ||
+      categoryName.includes("yönetici");
+
+    const isPerformance = questionText.includes("performance");
+    const isContribution = questionText.includes("contribution");
+
+    if (isKpi) {
       totalKPI += numValue;
       kpiCount++;
     }
-    if (questionType === "potential" || questionText.includes("potential")) {
+    if (isPotential) {
       totalPotential += numValue;
       potentialCount++;
     }
-    if (questionText.includes("culture") || questionText.includes("harmony")) {
+    if (isCulture) {
       totalCulture += numValue;
       cultureCount++;
     }
-    if (questionText.includes("team") || questionText.includes("collaboration")) {
+    if (isTeam) {
       totalTeam += numValue;
       teamCount++;
     }
-    if (questionText.includes("executive") || questionText.includes("observation")) {
+    if (isExecutive) {
       totalExecutive += numValue;
       executiveCount++;
     }
-    if (questionText.includes("performance")) {
+    if (isPerformance) {
       totalPerformance += numValue;
       performanceCount++;
     }
-    if (questionText.includes("contribution")) {
+    if (isContribution) {
       totalContribution += numValue;
       contributionCount++;
     }
