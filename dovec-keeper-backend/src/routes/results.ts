@@ -19,10 +19,7 @@ async function getSubcategoriesForSurvey(survey: any): Promise<any[]> {
       let category;
       try {
         category = await Category.findOne({
-          $or: [
-            { name: categoryNameOrId },
-            { _id: categoryNameOrId }
-          ]
+          $or: [{ name: categoryNameOrId }, { _id: categoryNameOrId }],
         });
       } catch (err) {
         // If categoryNameOrId is not a valid ObjectId, just search by name
@@ -32,8 +29,16 @@ async function getSubcategoriesForSurvey(survey: any): Promise<any[]> {
       if (category && category._id) {
         // Fetch subcategories for this category
         const subcategories = await Subcategory.find({ category: category._id });
-        // Filter out any null subcategories
-        const validSubcategories = (subcategories || []).filter((sub: any) => sub && sub._id);
+        // Attach category name to each subcategory for better classification
+        const validSubcategories = (subcategories || [])
+          .filter((sub: any) => sub && sub._id)
+          .map((sub: any) => {
+            const obj = sub.toObject ? sub.toObject() : sub;
+            return {
+              ...obj,
+              categoryName: category.name || "",
+            };
+          });
         subcategoriesList.push(...validSubcategories);
       }
     }
@@ -352,24 +357,30 @@ router.get("/", protect, async (req: any, res) => {
       if (questionsForCalculation.length === 0) {
         const subcategories = await getSubcategoriesForSurvey(survey);
         // Convert subcategories to question format for calculateScores
-        questionsForCalculation = (subcategories || []).filter((subcat: any) => subcat && subcat._id).map((subcat: any) => ({
-          id: subcat._id.toString(),
-          _id: subcat._id,
-          text: subcat.name,
-          name: subcat.name,
-          type: "" // Subcategories don't have type, will be categorized by name
-        }));
+        questionsForCalculation = (subcategories || [])
+          .filter((subcat: any) => subcat && subcat._id)
+          .map((subcat: any) => ({
+            id: subcat._id.toString(),
+            _id: subcat._id,
+            text: subcat.name,
+            name: subcat.name,
+            type: "",
+            categoryName: subcat.categoryName || "",
+          }));
       } else {
         // If survey has questions, also try to get subcategories to match answer IDs
         const subcategories = await getSubcategoriesForSurvey(survey);
         // Add subcategories to questions list (they might be the actual questions)
-        const subcategoryQuestions = (subcategories || []).filter((subcat: any) => subcat && subcat._id).map((subcat: any) => ({
-          id: subcat._id.toString(),
-          _id: subcat._id,
-          text: subcat.name,
-          name: subcat.name,
-          type: ""
-        }));
+        const subcategoryQuestions = (subcategories || [])
+          .filter((subcat: any) => subcat && subcat._id)
+          .map((subcat: any) => ({
+            id: subcat._id.toString(),
+            _id: subcat._id,
+            text: subcat.name,
+            name: subcat.name,
+            type: "",
+            categoryName: subcat.categoryName || "",
+          }));
         questionsForCalculation = [...questionsForCalculation, ...subcategoryQuestions];
       }
       
@@ -529,24 +540,30 @@ router.get("/:employeeId", protect, async (req: any, res) => {
       if (questionsForCalculation.length === 0) {
         const subcategories = await getSubcategoriesForSurvey(survey);
         // Convert subcategories to question format for calculateScores
-        questionsForCalculation = (subcategories || []).filter((subcat: any) => subcat && subcat._id).map((subcat: any) => ({
-          id: subcat._id.toString(),
-          _id: subcat._id,
-          text: subcat.name,
-          name: subcat.name,
-          type: ""
-        }));
+        questionsForCalculation = (subcategories || [])
+          .filter((subcat: any) => subcat && subcat._id)
+          .map((subcat: any) => ({
+            id: subcat._id.toString(),
+            _id: subcat._id,
+            text: subcat.name,
+            name: subcat.name,
+            type: "",
+            categoryName: subcat.categoryName || "",
+          }));
       } else {
         // If survey has questions, also try to get subcategories to match answer IDs
         const subcategories = await getSubcategoriesForSurvey(survey);
         // Add subcategories to questions list
-        const subcategoryQuestions = (subcategories || []).filter((subcat: any) => subcat && subcat._id).map((subcat: any) => ({
-          id: subcat._id.toString(),
-          _id: subcat._id,
-          text: subcat.name,
-          name: subcat.name,
-          type: ""
-        }));
+        const subcategoryQuestions = (subcategories || [])
+          .filter((subcat: any) => subcat && subcat._id)
+          .map((subcat: any) => ({
+            id: subcat._id.toString(),
+            _id: subcat._id,
+            text: subcat.name,
+            name: subcat.name,
+            type: "",
+            categoryName: subcat.categoryName || "",
+          }));
         questionsForCalculation = [...questionsForCalculation, ...subcategoryQuestions];
       }
       
