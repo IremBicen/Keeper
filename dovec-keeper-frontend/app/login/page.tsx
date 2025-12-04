@@ -40,6 +40,7 @@ export default function LoginPage() {
         email: res.data.user.email,
         role: res.data.user.role,
         department: res.data.user.department || undefined,
+        departments: res.data.user.departments || [],
       };
 
       login(userData, res.data.token);

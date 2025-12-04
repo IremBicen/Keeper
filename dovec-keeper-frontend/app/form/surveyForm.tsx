@@ -25,6 +25,7 @@ interface Teammate {
     name: string;
     email: string;
     department?: string;
+    departments?: string[];
     role?: string;
 }
 
@@ -244,7 +245,7 @@ export default function SurveyForm({ survey, onClose, onSubmit }: SurveyFormProp
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 
-                // Filter only superiors (higher roles) in the same department
+                // Filter only superiors (higher roles) that share at least one department
                 const allUsers = res.data || [];
                 const currentRole = ((user as any)?.role || '').toString().toLowerCase();
                 const currentRank = roleRank[currentRole] || 0;
@@ -256,9 +257,15 @@ export default function SurveyForm({ survey, onClose, onSubmit }: SurveyFormProp
 
                     // Normalize department strings (trim, lowercase for comparison)
                     const userDept = (userDepartment || '').toString().trim().toLowerCase();
-                    const targetDept = (u.department || '').toString().trim().toLowerCase();
+                    const targetDepts: string[] = [
+                        (u.department || '').toString().trim().toLowerCase(),
+                        ...(Array.isArray(u.departments)
+                            ? u.departments.map((d) => d.toString().trim().toLowerCase())
+                            : []),
+                    ].filter(Boolean);
 
-                    const isSameDepartment = userDept === targetDept && userDept !== '';
+                    const isSameDepartment =
+                        userDept !== '' && targetDepts.includes(userDept);
 
                     const userId = (user as any)?.id?.toString() || (user as any)?._id?.toString();
                     const uId = u._id?.toString() || u.id?.toString();

@@ -21,6 +21,17 @@ const roleRank: Record<string, number> = {
   admin: 99,
 };
 
+// Helper: get normalized list of departments for a user (supports multi-department roles)
+const getUserDepartments = (user: any): string[] => {
+  if (!user) return [];
+  const single = (user.department || "").toString().trim();
+  const multi = Array.isArray(user.departments) ? user.departments : [];
+  const all = [...multi, single]
+    .map((d) => d && d.toString().trim())
+    .filter(Boolean);
+  return Array.from(new Set(all));
+};
+
 // Check if current user can submit a yönetici survey for the target employee
 const canSubmitManagerSurveyFor = (currentUser: any, targetEmployee: any): boolean => {
   // Admin can always submit
@@ -35,13 +46,16 @@ const canSubmitManagerSurveyFor = (currentUser: any, targetEmployee: any): boole
   // Unknown roles – be safe and deny
   if (!currentRank || !targetRank) return false;
 
-  // Must be in the same department if department is defined
-  if (
-    currentUser.department &&
-    targetEmployee.department &&
-    currentUser.department !== targetEmployee.department
-  ) {
-    return false;
+  // Must share at least one department if departments are defined
+  const currentDepartments = getUserDepartments(currentUser);
+  const targetDepartments = getUserDepartments(targetEmployee);
+  if (currentDepartments.length && targetDepartments.length) {
+    const hasOverlap = currentDepartments.some((dept) =>
+      targetDepartments.includes(dept)
+    );
+    if (!hasOverlap) {
+      return false;
+    }
   }
 
   // Director cannot evaluate if there is no superior role above them
@@ -68,7 +82,9 @@ router.post("/submit", protect, async (req: any, res) => {
       .select("title surveyName");
 
     if (surveyDoc && isManagerSurvey(surveyDoc)) {
-      const targetEmployee = await User.findById(employee).select("role department");
+      const targetEmployee = await User.findById(employee).select(
+        "role department departments"
+      );
       if (!targetEmployee) {
         return res.status(400).json({ message: "Target employee not found" });
       }

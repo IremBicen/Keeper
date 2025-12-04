@@ -20,11 +20,13 @@ router.get("/", protect, async (req: any, res) => {
       query.department = req.user.department;
     } else if (req.user.role === "employee" && forEvaluation) {
       // Employees can fetch users for evaluation purposes
-      // Return users in the same department (for teammates) and all managers
+      // Return:
+      // - Employees in the same department (for teammate surveys)
+      // - All potential superiors (manager / coordinator / director / admin)
       query = {
         $or: [
-          { department: req.user.department, role: { $in: ["employee", "manager"] } }, // Teammates
-          { role: "manager" } // All managers
+          { department: req.user.department, role: "employee" }, // Teammates
+          { role: { $in: ["manager", "coordinator", "director", "admin"] } } // Potential superiors
         ]
       };
     } else if (req.user.role !== "admin") {

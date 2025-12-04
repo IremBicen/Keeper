@@ -7,10 +7,10 @@ const router = Router();
 // Register (for testing - in prod limit this)
 router.post("/register", async (req, res) => {
   try {
-    const { name, email, password, role, department } = req.body;
+    const { name, email, password, role, department, departments } = req.body;
     const exists = await User.findOne({ email });
     if (exists) return res.status(400).json({ message: "User exists" });
-    const user = await User.create({ name, email, password, role, department });
+    const user = await User.create({ name, email, password, role, department, departments });
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || "changeme", { expiresIn: "7d" });
     res.json({ 
       token, 
@@ -19,7 +19,8 @@ router.post("/register", async (req, res) => {
         email: user.email, 
         name: user.name, 
         role: user.role,
-        department: user.department || null
+        department: user.department || null,
+        departments: user.departments || []
       } 
     });
   } catch (err) {
@@ -37,13 +38,14 @@ router.post("/login", async (req, res) => {
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || "changeme", { expiresIn: "7d" });
     res.json({ 
       token, 
-      user: { 
-        id: user._id, 
-        email: user.email, 
-        name: user.name, 
+      user: {
+        id: user._id,
+        email: user.email,
+        name: user.name,
         role: user.role,
-        department: user.department || null
-      } 
+        department: user.department || null,
+        departments: user.departments || []
+      }
     });
   } catch (err) {
     res.status(500).json({ message: "Server error", err });

@@ -2,19 +2,22 @@
 
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 
+type Role = "admin" | "director" | "coordinator" | "manager" | "employee";
+
 type User = {
   id: string;
   name: string;
   email: string;
-  role: "admin" | "manager" | "employee";
+  role: Role;
   department?: string;
+  departments?: string[]; // Multi-department support for director/coordinator
 };
 
 type UserContextType = {
   user: User | null;
   token: string | null;
-  role: "admin" | "manager" | "employee";
-  setRole: (role: "admin" | "manager" | "employee") => void;
+  role: Role;
+  setRole: (role: Role) => void;
   login: (user: User, token: string) => void;
   logout: () => void;
 };
@@ -31,7 +34,7 @@ const UserContext = createContext<UserContextType>({
 export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
-  const [role, setRole] = useState<"admin" | "manager" | "employee">("employee");
+  const [role, setRole] = useState<Role>("employee");
 
   // LocalStorage’dan geri yükleme
   useEffect(() => {

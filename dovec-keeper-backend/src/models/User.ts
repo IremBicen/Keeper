@@ -7,6 +7,7 @@ export interface IUser extends Document {
   password: string;
   role: "admin" | "director" | "coordinator" | "manager" | "employee";
   department?: string;
+  departments?: string[]; // For roles (e.g. director/coordinator) that cover multiple departments
   kpi?: number; // KPI score for each user (admin can set this)
   comparePassword: (candidate: string) => Promise<boolean>;
 }
@@ -21,6 +22,7 @@ const UserSchema: Schema = new Schema({
     default: "manager",
   },
   department: { type: String, default: null },
+  departments: { type: [String], default: [] },
   kpi: { type: Number, default: 0, min: 0 } // KPI score for each user (admin can set this)
 }, { timestamps: true });
 
