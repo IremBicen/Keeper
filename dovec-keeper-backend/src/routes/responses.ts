@@ -40,12 +40,6 @@ const canSubmitManagerSurveyFor = (currentUser: any, targetEmployee: any): boole
   const currentRole = (currentUser.role || "").toLowerCase();
   const targetRole = (targetEmployee.role || "").toLowerCase();
 
-  const currentRank = roleRank[currentRole];
-  const targetRank = roleRank[targetRole];
-
-  // Unknown roles – be safe and deny
-  if (!currentRank || !targetRank) return false;
-
   // Must share at least one department if departments are defined
   const currentDepartments = getUserDepartments(currentUser);
   const targetDepartments = getUserDepartments(targetEmployee);
@@ -58,15 +52,25 @@ const canSubmitManagerSurveyFor = (currentUser: any, targetEmployee: any): boole
     }
   }
 
-  // Director cannot evaluate if there is no superior role above them
-  if (currentRole === "director") {
-    // No role above director except admin – business rule: director has no superior
-    return false;
+  // Role-based rules:
+  // - Employee -> only manager
+  // - Manager -> director or coordinator
+  // - Coordinator -> director
+  // - Director -> cannot evaluate (no superior)
+  if (currentRole === "employee") {
+    return targetRole === "manager";
   }
 
-  // Main rule: can only evaluate decisive roles beyond their own (strictly higher role)
-  // Example chain: employee -> manager -> coordinator -> director
-  return targetRank > currentRank;
+  if (currentRole === "manager") {
+    return targetRole === "coordinator" || targetRole === "director";
+  }
+
+  if (currentRole === "coordinator") {
+    return targetRole === "director";
+  }
+
+  // Directors (and any other unknown roles) cannot evaluate
+  return false;
 };
 
 router.post("/submit", protect, async (req: any, res) => {

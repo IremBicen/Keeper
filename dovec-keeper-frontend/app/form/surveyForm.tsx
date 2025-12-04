@@ -271,9 +271,23 @@ export default function SurveyForm({ survey, onClose, onSubmit }: SurveyFormProp
                     const uId = u._id?.toString() || u.id?.toString();
                     const isNotSelf = uId !== userId;
 
-                    const isSuperior = targetRank > currentRank;
+                    // Role-based visibility:
+                    // - Employee -> only manager
+                    // - Manager -> director or coordinator
+                    // - Coordinator -> director
+                    // - Director -> none
+                    let isAllowedByRole = false;
+                    if (currentRole === 'employee') {
+                        isAllowedByRole = targetRole === 'manager';
+                    } else if (currentRole === 'manager') {
+                        isAllowedByRole = targetRole === 'coordinator' || targetRole === 'director';
+                    } else if (currentRole === 'coordinator') {
+                        isAllowedByRole = targetRole === 'director';
+                    } else if (currentRole === 'director') {
+                        isAllowedByRole = false;
+                    }
 
-                    return isSameDepartment && isNotSelf && isSuperior;
+                    return isSameDepartment && isNotSelf && isAllowedByRole;
                 });
                 
                 // Sort by department, then by name
