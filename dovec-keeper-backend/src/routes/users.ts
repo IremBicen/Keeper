@@ -12,12 +12,27 @@ router.get("/", protect, async (req: any, res) => {
     
     // Managers can only see users in their department
     if (req.user.role === "manager") {
-      if (!req.user.department) {
-        return res.status(403).json({ 
-          message: "Manager must have a department assigned to view users" 
+      const managerDept = req.user.department;
+      if (!managerDept) {
+        return res.status(403).json({
+          message: "Manager must have a department assigned to view users"
         });
       }
-      query.department = req.user.department;
+
+      if (forEvaluation) {
+        // For evaluation purposes:
+        // return users that share the manager's department
+        // via either `department` or `departments` array
+        query = {
+          $or: [
+            { department: managerDept },
+            { departments: managerDept },
+          ],
+        };
+      } else {
+        // Default behaviour: managers only see users in their primary department
+        query.department = managerDept;
+      }
     } else if (req.user.role === "employee" && forEvaluation) {
       // Employees can fetch users for evaluation purposes
       // Return:
