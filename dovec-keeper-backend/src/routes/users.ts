@@ -9,44 +9,25 @@ router.get("/", protect, async (req: any, res) => {
   try {
     let query: any = {};
     const forEvaluation = req.query.forEvaluation === 'true';
-    
-    // Managers can only see users in their department
-    if (req.user.role === "manager") {
-      const managerDept = req.user.department;
-      if (!managerDept) {
-        return res.status(403).json({
-          message: "Manager must have a department assigned to view users"
-        });
-      }
 
-      if (forEvaluation) {
-        // For evaluation purposes:
-        // return users that share the manager's department
-        // via either `department` or `departments` array
-        query = {
-          $or: [
-            { department: managerDept },
-            { departments: managerDept },
-          ],
-        };
-      } else {
-        // Default behaviour: managers only see users in their primary department
+    if (forEvaluation) {
+      // For evaluation dropdowns we return all users.
+      // Frontend + /responses/submit permission checks enforce who can actually be evaluated.
+      query = {};
+    } else {
+      // Managers can only see users in their department (non-evaluation use cases)
+      if (req.user.role === "manager") {
+        const managerDept = req.user.department;
+        if (!managerDept) {
+          return res.status(403).json({
+            message: "Manager must have a department assigned to view users"
+          });
+        }
         query.department = managerDept;
+      } else if (req.user.role !== "admin") {
+        // Regular users cannot see other users
+        return res.status(403).json({ message: "Access denied" });
       }
-    } else if (req.user.role === "employee" && forEvaluation) {
-      // Employees can fetch users for evaluation purposes
-      // Return:
-      // - Employees in the same department (for teammate surveys)
-      // - All potential superiors (manager / coordinator / director / admin)
-      query = {
-        $or: [
-          { department: req.user.department, role: "employee" }, // Teammates
-          { role: { $in: ["manager", "coordinator", "director", "admin"] } } // Potential superiors
-        ]
-      };
-    } else if (req.user.role !== "admin") {
-      // Regular users cannot see other users unless for evaluation
-      return res.status(403).json({ message: "Access denied" });
     }
     
     const users = await User.find(query).select("-password");
