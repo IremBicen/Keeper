@@ -236,20 +236,25 @@ router.get("/", protect, async (req: any, res) => {
     // Fetch all submitted responses with populated employee and survey
     let responsesQuery: any = { status: "submitted" };
     
-    // Managers can see results for users in their department (and themselves)
-    // Note: We'll filter by department after populating employee
-    
     const allResponses = await ResponseModel.find(responsesQuery)
       .populate("employee", "name email role department")
       .populate("survey", "title questions categories")
       .sort({ submittedAt: -1 });
     
-    // Filter by department for managers (they can see their own results and their department)
-    // Also filter out any responses with null employees
+    // Filter out responses with null employees and enforce viewing rules
     let responses = allResponses.filter((response: any) => {
       const employee = response.employee as any;
-      return employee && employee._id; // Filter out null employees
+      return employee && employee._id;
     });
+
+    // For non-admin users, do not return results of "yönetici" (manager) surveys
+    if (req.user.role !== "admin") {
+      responses = responses.filter((response: any) => {
+        const survey = response.survey as any;
+        const title = (survey?.title || survey?.surveyName || "").toLowerCase();
+        return !title.includes("yönetici");
+      });
+    }
     
     if (req.user.role === "manager") {
       const managerId = req.user._id.toString();
@@ -463,41 +468,30 @@ router.get("/:employeeId", protect, async (req: any, res) => {
       .populate("survey", "title questions categories")
       .sort({ submittedAt: -1 });
     
-    // For managers, verify the employee is in their department OR is themselves
-    if (req.user.role === "manager") {
-      const managerId = req.user._id.toString();
-      const isViewingSelf = employeeId === managerId;
-      
-      if (!isViewingSelf) {
-        const targetEmployee = allResponses.find((r: any) => {
-          const emp = r.employee as any;
-          if (!emp) return false;
-          const empId = emp._id?.toString() || emp.id?.toString();
-          return empId === employeeId;
-        });
-        
-        if (targetEmployee) {
-          const emp = targetEmployee.employee as any;
-          // Manager can only see results for employees in their department (not themselves, already checked)
-          if (emp.department !== req.user.department) {
-            return res.status(403).json({ 
-              message: "You can only view results for employees in your department or your own results" 
-            });
-          }
-        }
-      }
-      // If viewing self, allow access
-    }
-
     // Filter responses where employee ID matches (handles both ObjectId and string formats)
     // Also filter out any responses with null employees
     const responses = allResponses.filter((response: any) => {
       const emp = response.employee as any;
       if (!emp || !emp._id) return false;
-      
+
       const empId = emp._id?.toString() || emp.id?.toString() || emp._id || emp.id;
       return empId === employeeId || empId?.toString() === employeeId?.toString();
     });
+
+    // For non-admin users, do not allow viewing detailed results of "yönetici" surveys
+    if (req.user.role !== "admin") {
+      const hasManagerSurvey = responses.some((response: any) => {
+        const survey = response.survey as any;
+        const title = (survey?.title || survey?.surveyName || "").toLowerCase();
+        return title.includes("yönetici");
+      });
+
+      if (hasManagerSurvey) {
+        return res.status(403).json({
+          message: "Only admins can view results of manager surveys",
+        });
+      }
+    }
 
     if (responses.length === 0) {
       return res.status(404).json({ 

@@ -48,6 +48,15 @@ export default function SurveyForm({ survey, onClose, onSubmit }: SurveyFormProp
     const [loadingTeammates, setLoadingTeammates] = useState(false);
     const [loadingManagers, setLoadingManagers] = useState(false);
 
+    // Shared role ranking logic (higher number = higher level)
+    const roleRank: Record<string, number> = {
+        employee: 1,
+        manager: 2,
+        coordinator: 3,
+        director: 4,
+        admin: 99,
+    };
+
     //--------------Error Handling--------------------------
     useEffect(() => {
         if (Object.keys(errors).length > 0) {
@@ -235,11 +244,29 @@ export default function SurveyForm({ survey, onClose, onSubmit }: SurveyFormProp
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 
-                // Filter all managers from all departments
+                // Filter only superiors (higher roles) in the same department
                 const allUsers = res.data || [];
+                const currentRole = ((user as any)?.role || '').toString().toLowerCase();
+                const currentRank = roleRank[currentRole] || 0;
+                const userDepartment = (user as any)?.department || (user as any)?.department;
+
                 const filtered = allUsers.filter((u: Teammate) => {
-                    // Only managers, from any department
-                    return u.role === 'manager';
+                    const targetRole = (u.role || '').toString().toLowerCase();
+                    const targetRank = roleRank[targetRole] || 0;
+
+                    // Normalize department strings (trim, lowercase for comparison)
+                    const userDept = (userDepartment || '').toString().trim().toLowerCase();
+                    const targetDept = (u.department || '').toString().trim().toLowerCase();
+
+                    const isSameDepartment = userDept === targetDept && userDept !== '';
+
+                    const userId = (user as any)?.id?.toString() || (user as any)?._id?.toString();
+                    const uId = u._id?.toString() || u.id?.toString();
+                    const isNotSelf = uId !== userId;
+
+                    const isSuperior = targetRank > currentRank;
+
+                    return isSameDepartment && isNotSelf && isSuperior;
                 });
                 
                 // Sort by department, then by name
@@ -419,7 +446,7 @@ export default function SurveyForm({ survey, onClose, onSubmit }: SurveyFormProp
                     {isManagerSurvey && (
                         <div className="teammate-selection-section">
                             <label htmlFor="manager-select" className="teammate-label">
-                                Select Manager to Evaluate <span className="required-asterisk">*</span>
+                                Select Superior to Evaluate <span className="required-asterisk">*</span>
                             </label>
                             {loadingManagers ? (
                                 <p>Loading managers...</p>

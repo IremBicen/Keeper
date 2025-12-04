@@ -5,7 +5,7 @@ export interface IUser extends Document {
   name: string;
   email: string;
   password: string;
-  role: "admin" | "manager" | "employee";
+  role: "admin" | "director" | "coordinator" | "manager" | "employee";
   department?: string;
   kpi?: number; // KPI score for each user (admin can set this)
   comparePassword: (candidate: string) => Promise<boolean>;
@@ -15,7 +15,11 @@ const UserSchema: Schema = new Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  role: { type: String, enum: ["admin", "manager", "employee"], default: "manager" },
+  role: {
+    type: String,
+    enum: ["admin", "director", "coordinator", "manager", "employee"],
+    default: "manager",
+  },
   department: { type: String, default: null },
   kpi: { type: Number, default: 0, min: 0 } // KPI score for each user (admin can set this)
 }, { timestamps: true });
