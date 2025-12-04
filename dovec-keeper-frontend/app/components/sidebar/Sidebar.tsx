@@ -49,7 +49,7 @@ const getMenuItems = (userRole?: string) => {
   if (userRole === "admin") {
     items.push({ name: "Users", icon: UsersIcon, href: "/users" });
     items.push({ name: "Results", icon: ResultsIcon, href: "/results" });
-    items.push({ name: "Evaluations", icon: EvaluationsIcon, href: "/investigations" });
+    items.push({ name: "Evaluations", icon: EvaluationsIcon, href: "/evaluations" });
   }
 
   return items;

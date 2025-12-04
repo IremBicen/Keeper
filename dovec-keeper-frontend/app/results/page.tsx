@@ -27,6 +27,9 @@ function ResultsPageContent() {
     const [selectedResultForAnswers, setSelectedResultForAnswers] = useState<EmployeeResult | null>(null);
     const [selectedEmployeeKpi, setSelectedEmployeeKpi] = useState<number | undefined>(undefined);
     const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | undefined>(undefined);
+    const [departmentFilter, setDepartmentFilter] = useState<string>('');
+    const [surveyFilter, setSurveyFilter] = useState<string>('');
+    const [nameSearch, setNameSearch] = useState<string>('');
 
     // Fetch results from backend
     useEffect(() => {
@@ -169,11 +172,45 @@ function ResultsPageContent() {
         setSelectedEmployeeId(undefined);
     };
 
+    // Derived lists for filters
+    const departmentOptions = Array.from(
+        new Set(
+            resultsData
+                .filter((item) => item && item.department)
+                .map((item) => item.department as string)
+        )
+    ).sort();
+
+    const surveyOptions = Array.from(
+        new Set(
+            resultsData
+                .filter((item) => item && item.surveyTitle)
+                .map((item) => (item.surveyTitle || 'Unknown Survey') as string)
+        )
+    ).sort();
+
+    // Apply filters + search
+    const filteredResults = resultsData
+        .filter((result) => result && (result._id || result.id))
+        .filter((result) => {
+            if (departmentFilter && result.department !== departmentFilter) return false;
+            if (surveyFilter && (result.surveyTitle || 'Unknown Survey') !== surveyFilter) return false;
+            if (nameSearch) {
+                const query = nameSearch.toLowerCase().trim();
+                const name = (result.employeeName || '').toLowerCase();
+                if (!name.includes(query)) return false;
+            }
+            return true;
+        });
+
     // Export to a formatted Excel file using a plain JS function (XLSX library)
     const handleExport = () => {
-        // 1. Prepare the data in an array of objects format
-        // Filter out any null items first
-        const validData = resultsData.filter(item => item && (item._id || item.id));
+        // 1. Prepare the data in an array of objects format (use currently filtered results)
+        const validData = filteredResults;
+        if (validData.length === 0) {
+            alert("No data to export");
+            return;
+        }
         const dataForSheet = validData.map(item => ({
             "Employee Name": item.employeeName,
             "Department": item.department,
@@ -197,10 +234,6 @@ function ResultsPageContent() {
 
         // 3. Define column widths (simplified)
         // Get the number of columns from the first data row + headers
-        if (dataForSheet.length === 0) {
-            alert("No data to export");
-            return;
-        }
         const numberOfColumns = Object.keys(dataForSheet[0]).length;
         // Create an array of width objects, all set to 20
         const columnWidths = Array(numberOfColumns).fill({ wch: 20 });
@@ -225,6 +258,61 @@ function ResultsPageContent() {
                     </button>
                 </header>
                 <div className="box-container">
+                    {/* Filters and search */}
+                    <div className="results-filters">
+                        <div className="form-group">
+                            <label htmlFor="departmentFilter" className="label-text">
+                                Department
+                            </label>
+                            <select
+                                id="departmentFilter"
+                                className="form-select"
+                                value={departmentFilter}
+                                onChange={(e) => setDepartmentFilter(e.target.value)}
+                            >
+                                <option value="">All</option>
+                                {departmentOptions.map((dept) => (
+                                    <option key={dept} value={dept}>
+                                        {dept}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="form-group">
+                            <label htmlFor="surveyFilter" className="label-text">
+                                Survey Type
+                            </label>
+                            <select
+                                id="surveyFilter"
+                                className="form-select"
+                                value={surveyFilter}
+                                onChange={(e) => setSurveyFilter(e.target.value)}
+                            >
+                                <option value="">All</option>
+                                {surveyOptions.map((s) => (
+                                    <option key={s} value={s}>
+                                        {s}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="form-group results-search-group">
+                            <label htmlFor="nameSearch" className="label-text">
+                                Search by Name
+                            </label>
+                            <input
+                                id="nameSearch"
+                                type="text"
+                                className="form-input results-search-input"
+                                placeholder="Type employee name..."
+                                value={nameSearch}
+                                onChange={(e) => setNameSearch(e.target.value)}
+                            />
+                        </div>
+                    </div>
+
                     <table className="table-container">
                         <thead>
                             <tr>
@@ -244,14 +332,12 @@ function ResultsPageContent() {
                                 <tr>
                                     <td colSpan={9} style={{ textAlign: "center" }}>Loading...</td>
                                 </tr>
-                            ) : resultsData.length === 0 ? (
+                            ) : filteredResults.length === 0 ? (
                                 <tr>
                                     <td colSpan={9} style={{ textAlign: "center" }}>No results found</td>
                                 </tr>
                             ) : (
-                                resultsData
-                                    .filter((result) => result && (result._id || result.id))
-                                    .map((result) => (
+                                filteredResults.map((result) => (
                                     <tr key={result._id || result.id || `result-${Math.random()}`}>
                                         <td>{result.employeeName}</td>
                                         <td>{result.department}</td>

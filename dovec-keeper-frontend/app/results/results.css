@@ -24,3 +24,18 @@
     align-items: center;
     justify-content: flex-start;
 }
+
+.results-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.results-filters .form-group {
+    min-width: 200px;
+}
+
+.results-search-input {
+    max-width: 260px;
+}
