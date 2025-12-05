@@ -58,12 +58,12 @@ export function buildSurveyQuery(user: IUser): any {
     return {};
   }
 
-  // Manager can see:
+  // Manager / Coordinator / Director can see:
   // 1. Surveys assigned to their department
   // 2. Surveys assigned specifically to them
   // 3. Surveys assigned to "all"
   // 4. Surveys assigned to "managers"
-  if (user.role === "manager") {
+  if (user.role === "manager" || user.role === "coordinator" || user.role === "director") {
     return {
       $or: [
         { assignmentType: "all" },

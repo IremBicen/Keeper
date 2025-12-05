@@ -28,14 +28,31 @@
 .results-filters {
     display: flex;
     flex-wrap: wrap;
-    gap: 1rem;
+    gap: 1rem 1.5rem;
     margin-bottom: 1.5rem;
+    align-items: flex-end;
 }
 
 .results-filters .form-group {
     min-width: 200px;
+    flex: 1 1 220px;
 }
 
 .results-search-input {
     max-width: 260px;
+}
+
+@media (max-width: 900px) {
+    .results-filters {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .results-filters .form-group {
+        min-width: 100%;
+    }
+
+    .results-search-input {
+        max-width: 100%;
+    }
 }
