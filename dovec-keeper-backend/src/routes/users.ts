@@ -68,11 +68,12 @@ router.get("/:id", protect, async (req: any, res) => {
 // PUT /api/users/:id - Update user (admin only)
 router.put("/:id", protect, authorize("admin"), async (req: any, res) => {
   try {
-    const { name, email, role, department, kpi } = req.body;
+    const { name, email, role, company, department, kpi } = req.body;
     const updateData: any = {};
     if (name !== undefined) updateData.name = name;
     if (email !== undefined) updateData.email = email;
     if (role !== undefined) updateData.role = role;
+    if (company !== undefined) updateData.company = company;
     if (department !== undefined) updateData.department = department;
     if (kpi !== undefined) updateData.kpi = kpi; // Allow KPI update
     
