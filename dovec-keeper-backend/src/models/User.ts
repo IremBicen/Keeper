@@ -6,7 +6,6 @@ export interface IUser extends Document {
   email: string;
   password: string;
   role: "admin" | "director" | "coordinator" | "manager" | "employee";
-  company?: string;
   department?: string;
   departments?: string[]; // For roles (e.g. director/coordinator) that cover multiple departments
   kpi?: number; // KPI score for each user (admin can set this)
@@ -17,7 +16,6 @@ const UserSchema: Schema = new Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  company: { type: String, default: null },
   role: {
     type: String,
     enum: ["admin", "director", "coordinator", "manager", "employee"],

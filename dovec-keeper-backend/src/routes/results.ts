@@ -253,7 +253,7 @@ router.get("/", protect, async (req: any, res) => {
         const survey = response.survey as any;
         const title = (survey?.title || survey?.surveyName || "").toLowerCase();
         return !title.includes("yönetici");
-      });
+    });
     }
     
     if (req.user.role === "manager") {
@@ -467,13 +467,13 @@ router.get("/:employeeId", protect, async (req: any, res) => {
       .populate("employee", "name email role department kpi")
       .populate("survey", "title questions categories")
       .sort({ submittedAt: -1 });
-    
+
     // Filter responses where employee ID matches (handles both ObjectId and string formats)
     // Also filter out any responses with null employees
     const responses = allResponses.filter((response: any) => {
       const emp = response.employee as any;
       if (!emp || !emp._id) return false;
-
+      
       const empId = emp._id?.toString() || emp.id?.toString() || emp._id || emp.id;
       return empId === employeeId || empId?.toString() === employeeId?.toString();
     });

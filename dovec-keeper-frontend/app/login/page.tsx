@@ -39,7 +39,6 @@ export default function LoginPage() {
         name: res.data.user.name,
         email: res.data.user.email,
         role: res.data.user.role,
-        company: res.data.user.company || undefined,
         department: res.data.user.department || undefined,
         departments: res.data.user.departments || [],
       };

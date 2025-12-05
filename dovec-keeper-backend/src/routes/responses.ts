@@ -33,7 +33,10 @@ const getUserDepartments = (user: any): string[] => {
 };
 
 // Check if current user can submit a yönetici survey for the target employee
-const canSubmitManagerSurveyFor = (currentUser: any, targetEmployee: any): boolean => {
+const canSubmitManagerSurveyFor = async (
+  currentUser: any,
+  targetEmployee: any
+): Promise<boolean> => {
   // Admin can always submit
   if (currentUser.role === "admin") return true;
 
@@ -53,12 +56,41 @@ const canSubmitManagerSurveyFor = (currentUser: any, targetEmployee: any): boole
   }
 
   // Role-based rules:
-  // - Employee -> only manager
+  // - Employee:
+  //     * if there is at least one manager in their departments -> can only evaluate manager
+  //     * else if there is coordinator -> can evaluate coordinator
+  //     * else if there is director -> can evaluate director
   // - Manager -> director or coordinator
   // - Coordinator -> director
   // - Director -> cannot evaluate (no superior)
   if (currentRole === "employee") {
-    return targetRole === "manager";
+    const depts = currentDepartments;
+    if (!depts.length) return false;
+
+    const deptMatch = {
+      $or: [{ department: { $in: depts } }, { departments: { $in: depts } }],
+    };
+
+    const hasManager = await User.exists({ role: "manager", ...deptMatch });
+    if (hasManager) {
+      return targetRole === "manager";
+    }
+
+    const hasCoordinator = await User.exists({
+      role: "coordinator",
+      ...deptMatch,
+    });
+    if (hasCoordinator) {
+      return targetRole === "coordinator";
+    }
+
+    const hasDirector = await User.exists({ role: "director", ...deptMatch });
+    if (hasDirector) {
+      return targetRole === "director";
+    }
+
+    // No superior role defined in these departments
+    return false;
   }
 
   if (currentRole === "manager") {
@@ -75,8 +107,8 @@ const canSubmitManagerSurveyFor = (currentUser: any, targetEmployee: any): boole
 
 router.post("/submit", protect, async (req: any, res) => {
   try {
-    // save as draft or submit
-    const { survey, employee, answers, status } = req.body;
+  // save as draft or submit
+  const { survey, employee, answers, status } = req.body;
 
     // If this is a yönetici (manager) survey and user is not admin,
     // enforce role-based permission checks
@@ -93,7 +125,7 @@ router.post("/submit", protect, async (req: any, res) => {
         return res.status(400).json({ message: "Target employee not found" });
       }
 
-      if (!canSubmitManagerSurveyFor(req.user, targetEmployee)) {
+      if (!(await canSubmitManagerSurveyFor(req.user, targetEmployee))) {
         return res.status(403).json({
           message:
             "You are not allowed to submit this manager evaluation. You can only evaluate your superior in the hierarchy.",
@@ -101,16 +133,16 @@ router.post("/submit", protect, async (req: any, res) => {
       }
     }
 
-    const existing = await ResponseModel.findOne({ survey, employee });
-    if (existing) {
-      existing.answers = answers;
-      existing.status = status || existing.status;
-      if (status === "submitted") existing.submittedAt = new Date();
-      await existing.save();
-      return res.json(existing);
-    }
-    const created = await ResponseModel.create({ survey, employee, answers, status });
-    res.json(created);
+  const existing = await ResponseModel.findOne({ survey, employee });
+  if (existing) {
+    existing.answers = answers;
+    existing.status = status || existing.status;
+    if (status === "submitted") existing.submittedAt = new Date();
+    await existing.save();
+    return res.json(existing);
+  }
+  const created = await ResponseModel.create({ survey, employee, answers, status });
+  res.json(created);
   } catch (error: any) {
     res.status(500).json({ message: error.message || "Failed to submit response" });
   }

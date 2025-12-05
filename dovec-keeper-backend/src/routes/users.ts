@@ -9,24 +9,24 @@ router.get("/", protect, async (req: any, res) => {
   try {
     let query: any = {};
     const forEvaluation = req.query.forEvaluation === 'true';
-
+    
     if (forEvaluation) {
       // For evaluation dropdowns we return all users.
       // Frontend + /responses/submit permission checks enforce who can actually be evaluated.
       query = {};
     } else {
       // Managers can only see users in their department (non-evaluation use cases)
-      if (req.user.role === "manager") {
+    if (req.user.role === "manager") {
         const managerDept = req.user.department;
         if (!managerDept) {
-          return res.status(403).json({
-            message: "Manager must have a department assigned to view users"
-          });
-        }
+        return res.status(403).json({ 
+          message: "Manager must have a department assigned to view users" 
+        });
+      }
         query.department = managerDept;
-      } else if (req.user.role !== "admin") {
+    } else if (req.user.role !== "admin") {
         // Regular users cannot see other users
-        return res.status(403).json({ message: "Access denied" });
+      return res.status(403).json({ message: "Access denied" });
       }
     }
     
@@ -68,12 +68,11 @@ router.get("/:id", protect, async (req: any, res) => {
 // PUT /api/users/:id - Update user (admin only)
 router.put("/:id", protect, authorize("admin"), async (req: any, res) => {
   try {
-    const { name, email, role, company, department, kpi } = req.body;
+    const { name, email, role, department, kpi } = req.body;
     const updateData: any = {};
     if (name !== undefined) updateData.name = name;
     if (email !== undefined) updateData.email = email;
     if (role !== undefined) updateData.role = role;
-    if (company !== undefined) updateData.company = company;
     if (department !== undefined) updateData.department = department;
     if (kpi !== undefined) updateData.kpi = kpi; // Allow KPI update
     

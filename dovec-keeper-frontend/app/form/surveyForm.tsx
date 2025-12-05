@@ -245,15 +245,57 @@ export default function SurveyForm({ survey, onClose, onSubmit }: SurveyFormProp
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 
-                // Filter only superiors (higher roles) that share at least one department
+                // Filter only superiors that share at least one department,
+                // using the same hierarchy rules as the backend:
+                // - Employee:
+                //     * if there is at least one manager in their departments -> only managers
+                //     * else if coordinator exists -> only coordinators
+                //     * else if director exists -> only directors
+                // - Manager -> coordinator or director
+                // - Coordinator -> director
+                // - Director -> none
                 const allUsers = res.data || [];
                 const currentRole = ((user as any)?.role || '').toString().toLowerCase();
                 const currentRank = roleRank[currentRole] || 0;
                 const userDepartment = (user as any)?.department || (user as any)?.department;
 
+                // Precompute which superior roles exist in the employee's departments
+                let allowedRolesForEmployee: string[] = [];
+                if (currentRole === 'employee') {
+                    const userDept = (userDepartment || '').toString().trim().toLowerCase();
+                    const candidates = allUsers.filter((u: Teammate) => {
+                        const targetDepts: string[] = [
+                            (u.department || '').toString().trim().toLowerCase(),
+                            ...(Array.isArray(u.departments)
+                                ? u.departments.map((d) => d.toString().trim().toLowerCase())
+                                : []),
+                        ].filter(Boolean);
+                        return userDept !== '' && targetDepts.includes(userDept);
+                    });
+
+                    const hasManager = candidates.some(
+                        (u) => (u.role || '').toString().toLowerCase() === 'manager'
+                    );
+                    const hasCoordinator = candidates.some(
+                        (u) => (u.role || '').toString().toLowerCase() === 'coordinator'
+                    );
+                    const hasDirector = candidates.some(
+                        (u) => (u.role || '').toString().toLowerCase() === 'director'
+                    );
+
+                    if (hasManager) {
+                        allowedRolesForEmployee = ['manager'];
+                    } else if (hasCoordinator) {
+                        allowedRolesForEmployee = ['coordinator'];
+                    } else if (hasDirector) {
+                        allowedRolesForEmployee = ['director'];
+                    } else {
+                        allowedRolesForEmployee = [];
+                    }
+                }
+
                 const filtered = allUsers.filter((u: Teammate) => {
                     const targetRole = (u.role || '').toString().toLowerCase();
-                    const targetRank = roleRank[targetRole] || 0;
 
                     // Normalize department strings (trim, lowercase for comparison)
                     const userDept = (userDepartment || '').toString().trim().toLowerCase();
@@ -272,13 +314,13 @@ export default function SurveyForm({ survey, onClose, onSubmit }: SurveyFormProp
                     const isNotSelf = uId !== userId;
 
                     // Role-based visibility:
-                    // - Employee -> only manager
+                    // - Employee -> only the first available superior level in their departments
                     // - Manager -> director or coordinator
                     // - Coordinator -> director
                     // - Director -> none
                     let isAllowedByRole = false;
                     if (currentRole === 'employee') {
-                        isAllowedByRole = targetRole === 'manager';
+                        isAllowedByRole = allowedRolesForEmployee.includes(targetRole);
                     } else if (currentRole === 'manager') {
                         isAllowedByRole = targetRole === 'coordinator' || targetRole === 'director';
                     } else if (currentRole === 'coordinator') {

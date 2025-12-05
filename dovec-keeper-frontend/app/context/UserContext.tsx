@@ -9,7 +9,6 @@ type User = {
   name: string;
   email: string;
   role: Role;
-  company?: string;
   department?: string;
   departments?: string[]; // Multi-department support for director/coordinator
 };

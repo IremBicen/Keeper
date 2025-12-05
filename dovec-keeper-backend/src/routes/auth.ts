@@ -7,19 +7,18 @@ const router = Router();
 // Register (for testing - in prod limit this)
 router.post("/register", async (req, res) => {
   try {
-    const { name, email, password, role, company, department, departments } = req.body;
+    const { name, email, password, role, department, departments } = req.body;
     const exists = await User.findOne({ email });
     if (exists) return res.status(400).json({ message: "User exists" });
-    const user = await User.create({ name, email, password, role, company, department, departments });
+    const user = await User.create({ name, email, password, role, department, departments });
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || "changeme", { expiresIn: "7d" });
     res.json({ 
       token, 
       user: { 
         id: user._id, 
-        email: user.email,
-        name: user.name,
+        email: user.email, 
+        name: user.name, 
         role: user.role,
-        company: user.company || null,
         department: user.department || null,
         departments: user.departments || []
       } 
@@ -44,7 +43,6 @@ router.post("/login", async (req, res) => {
         email: user.email,
         name: user.name,
         role: user.role,
-        company: user.company || null,
         department: user.department || null,
         departments: user.departments || []
       }
