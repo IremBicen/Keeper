@@ -143,11 +143,15 @@ export default function ChecksPage() {
 
     if (onlyIncomplete && sortedSurveys.length > 0) {
       list = list.filter((u) => {
-        const empId = (u._id || u.id).toString();
+        const empIdRaw = (u as any)?._id || (u as any)?.id;
+        if (!empIdRaw) return false;
+        const empId = empIdRaw.toString();
         const submitted = completionMap.get(empId) || new Set<string>();
         // user is incomplete if at least one survey is not in submitted
         return sortedSurveys.some((s) => {
-          const sId = (s._id || s.id).toString();
+          const sIdRaw = (s as any)?._id || (s as any)?.id;
+          if (!sIdRaw) return false;
+          const sId = sIdRaw.toString();
           return !submitted.has(sId);
         });
       });
@@ -202,7 +206,9 @@ export default function ChecksPage() {
                 </thead>
                 <tbody>
                   {sortedUsers.map((u) => {
-                    const empId = (u._id || u.id).toString();
+                    const empIdRaw = (u as any)?._id || (u as any)?.id;
+                    if (!empIdRaw) return null;
+                    const empId = empIdRaw.toString();
                     const submitted = completionMap.get(empId) || new Set<string>();
                     return (
                       <tr key={empId}>
@@ -215,7 +221,9 @@ export default function ChecksPage() {
                           </div>
                         </td>
                         {sortedSurveys.map((survey) => {
-                          const sId = (survey._id || survey.id).toString();
+                          const sIdRaw = (survey as any)?._id || (survey as any)?.id;
+                          if (!sIdRaw) return null;
+                          const sId = sIdRaw.toString();
                           const filled = submitted.has(sId);
                           return (
                             <td
