@@ -135,6 +135,14 @@ router.post("/submit", protect, async (req: any, res) => {
 
   const existing = await ResponseModel.findOne({ survey, employee });
   if (existing) {
+    // If already submitted, do not allow further changes or resubmission
+    if (existing.status === "submitted") {
+      return res
+        .status(400)
+        .json({ message: "This survey has already been submitted and cannot be changed." });
+    }
+
+    // Allow editing drafts or submitting them once
     existing.answers = answers;
     existing.status = status || existing.status;
     if (status === "submitted") existing.submittedAt = new Date();

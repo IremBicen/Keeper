@@ -125,7 +125,7 @@ export default function DashboardPage() {
       <main className="dashboard-main">
         <header className="dashboard-header">
           <h1 className="dashboard-title">
-            Welcome, {user?.name || "User"} ({user.role})
+            Welcome, {user?.name || "User"}
           </h1>
         </header>
 

@@ -26,6 +26,7 @@ export default function SurveysPage() {
   const [editingSurvey, setEditingSurvey] = useState<Survey | null>(null);
   const [previewingSurvey, setPreviewingSurvey] = useState<Survey | null>(null);
   const [fillingSurvey, setFillingSurvey] = useState<Survey | null>(null);
+  const [submittedSurveyIds, setSubmittedSurveyIds] = useState<Set<string>>(new Set());
 
   // Fetch surveys from backend
   const fetchSurveys = async () => {
@@ -47,6 +48,46 @@ export default function SurveysPage() {
   useEffect(() => {
     fetchSurveys();
   }, [token]);
+
+  // Fetch user's submitted responses to determine which self-surveys are already completed
+  useEffect(() => {
+    const fetchUserSubmittedResponses = async () => {
+      if (!token || !user) return;
+      try {
+        const res = await api.get<any[]>("/responses", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const userId =
+          (user as any)?.id?.toString() || (user as any)?._id?.toString();
+
+        const submitted = new Set<string>();
+        (res.data || []).forEach((r: any) => {
+          if (!r || r.status !== "submitted") return;
+          if (!r.employee) return;
+
+          const empId =
+            typeof r.employee === "string"
+              ? r.employee
+              : r.employee._id?.toString() || r.employee.id?.toString();
+          if (empId !== userId) return;
+
+          const surveyId =
+            typeof r.survey === "string"
+              ? r.survey
+              : r.survey?._id?.toString() || r.survey?.id?.toString();
+          if (!surveyId) return;
+          submitted.add(surveyId.toString());
+        });
+
+        setSubmittedSurveyIds(submitted);
+      } catch (err) {
+        console.error("Error fetching user responses for surveys page:", err);
+      }
+    };
+
+    fetchUserSubmittedResponses();
+  }, [token, user]);
 
   const handleEditClick = (survey: Survey) => {
     setEditingSurvey(survey);
@@ -219,14 +260,57 @@ export default function SurveysPage() {
                                 <td>{survey.responses || 0}</td>
                             <td>
                                 <div className="action-buttons">
-                                    <button className="btn btn-primary" onClick={() => handleFillSurveyClick(survey)}>Fill Survey</button>
-                                    <button className="btn btn-secondary" onClick={() => handlePreviewClick(survey)}>Preview</button>
-                                    {user?.role === "admin" && (
+                                  {(() => {
+                                    const surveyId = (survey._id || (survey as any).id)?.toString();
+                                    const title = (survey.title || survey.surveyName || "").toLowerCase();
+                                    const isTeammateSurvey = title.includes("takım arkadaşı");
+                                    const isManagerSurvey = title.includes("yönetici");
+                                    const isSelfSurvey = !isTeammateSurvey && !isManagerSurvey;
+                                    const alreadySubmitted =
+                                      isSelfSurvey &&
+                                      surveyId &&
+                                      submittedSurveyIds.has(surveyId);
+
+                                    return (
                                       <>
-                                        <button className="btn btn-edit" onClick={() => handleEditClick(survey)}>Edit</button>
-                                        <button className="btn btn-delete" onClick={() => handleDeleteClick(survey)}>Delete</button>
+                                        {!alreadySubmitted && (
+                                          <button
+                                            className="btn btn-primary"
+                                            onClick={() => handleFillSurveyClick(survey)}
+                                          >
+                                            Fill Survey
+                                          </button>
+                                        )}
+                                        {alreadySubmitted && (
+                                          <span style={{ color: "#16a34a", fontWeight: 600 }}>
+                                            Submitted
+                                          </span>
+                                        )}
+                                        <button
+                                          className="btn btn-secondary"
+                                          onClick={() => handlePreviewClick(survey)}
+                                        >
+                                          Preview
+                                        </button>
+                                        {user?.role === "admin" && (
+                                          <>
+                                            <button
+                                              className="btn btn-edit"
+                                              onClick={() => handleEditClick(survey)}
+                                            >
+                                              Edit
+                                            </button>
+                                            <button
+                                              className="btn btn-delete"
+                                              onClick={() => handleDeleteClick(survey)}
+                                            >
+                                              Delete
+                                            </button>
+                                          </>
+                                        )}
                                       </>
-                                    )}
+                                    );
+                                  })()}
                                 </div>
                             </td>
                         </tr>

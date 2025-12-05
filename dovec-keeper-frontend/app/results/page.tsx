@@ -29,7 +29,7 @@ function ResultsPageContent() {
     const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | undefined>(undefined);
     const [departmentFilter, setDepartmentFilter] = useState<string>('');
     const [surveyFilter, setSurveyFilter] = useState<string>('');
-    const [nameSearch, setNameSearch] = useState<string>('');
+    const [selectedName, setSelectedName] = useState<string>('');
 
     // Fetch results from backend
     useEffect(() => {
@@ -189,17 +189,21 @@ function ResultsPageContent() {
         )
     ).sort();
 
+    const nameOptions = Array.from(
+        new Set(
+            resultsData
+                .filter((item) => item && item.employeeName)
+                .map((item) => item.employeeName as string)
+        )
+    ).sort();
+
     // Apply filters + search
     const filteredResults = resultsData
         .filter((result) => result && (result._id || result.id))
         .filter((result) => {
             if (departmentFilter && result.department !== departmentFilter) return false;
             if (surveyFilter && (result.surveyTitle || 'Unknown Survey') !== surveyFilter) return false;
-            if (nameSearch) {
-                const query = nameSearch.toLowerCase().trim();
-                const name = (result.employeeName || '').toLowerCase();
-                if (!name.includes(query)) return false;
-            }
+            if (selectedName && result.employeeName !== selectedName) return false;
             return true;
         });
 
@@ -299,17 +303,22 @@ function ResultsPageContent() {
                         </div>
 
                         <div className="form-group results-search-group">
-                            <label htmlFor="nameSearch" className="label-text">
-                                Search by Name
+                            <label htmlFor="nameFilter" className="label-text">
+                                Employee
                             </label>
-                            <input
-                                id="nameSearch"
-                                type="text"
-                                className="form-input results-search-input"
-                                placeholder="Type employee name..."
-                                value={nameSearch}
-                                onChange={(e) => setNameSearch(e.target.value)}
-                            />
+                            <select
+                                id="nameFilter"
+                                className="form-select"
+                                value={selectedName}
+                                onChange={(e) => setSelectedName(e.target.value)}
+                            >
+                                <option value="">All</option>
+                                {nameOptions.map((name) => (
+                                    <option key={name} value={name}>
+                                        {name}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
                     </div>
 

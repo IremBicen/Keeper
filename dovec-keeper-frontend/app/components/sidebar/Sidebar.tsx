@@ -45,10 +45,11 @@ const getMenuItems = (userRole?: string) => {
     },
   ];
 
-  // Add Users, Results, and Evaluations only for admins
+  // Add Users, Results, Checks, and Evaluations only for admins
   if (userRole === "admin") {
     items.push({ name: "Users", icon: UsersIcon, href: "/users" });
     items.push({ name: "Results", icon: ResultsIcon, href: "/results" });
+    items.push({ name: "Completion Check", icon: ResultsIcon, href: "/checks" });
     items.push({ name: "Evaluations", icon: EvaluationsIcon, href: "/evaluations" });
   }
 
