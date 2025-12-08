@@ -131,7 +131,7 @@ router.post("/submit", protect, async (req: any, res) => {
     }
 
     const existing = await ResponseModel.findOne(existingQuery);
-    if (existing) {
+  if (existing) {
       // If already submitted, do not allow further changes or resubmission
       if (existing.status === "submitted") {
         return res
@@ -148,12 +148,12 @@ router.post("/submit", protect, async (req: any, res) => {
       }
 
       // Allow editing drafts or submitting them once
-      existing.answers = answers;
-      existing.status = status || existing.status;
-      if (status === "submitted") existing.submittedAt = new Date();
-      await existing.save();
-      return res.json(existing);
-    }
+    existing.answers = answers;
+    existing.status = status || existing.status;
+    if (status === "submitted") existing.submittedAt = new Date();
+    await existing.save();
+    return res.json(existing);
+  }
 
     const created = await ResponseModel.create({
       survey,
@@ -162,7 +162,7 @@ router.post("/submit", protect, async (req: any, res) => {
       answers,
       status,
     });
-    res.json(created);
+  res.json(created);
   } catch (error: any) {
     res.status(500).json({ message: error.message || "Failed to submit response" });
   }
@@ -189,7 +189,7 @@ router.get("/", protect, async (req: any, res) => {
       .populate("survey", "title surveyName status")
       .lean();
 
-    res.json(list);
+  res.json(list);
   } catch (error: any) {
     res
       .status(500)
