@@ -7,6 +7,9 @@ import { protect } from "../middleware/auth";
 
 const router = Router();
 
+// Cache for subcategories per survey to avoid repeated DB hits
+const surveySubcategoriesCache = new Map<string, any[]>();
+
 // Helper function to fetch subcategories for survey categories
 async function getSubcategoriesForSurvey(survey: any): Promise<any[]> {
   try {
@@ -49,6 +52,19 @@ async function getSubcategoriesForSurvey(survey: any): Promise<any[]> {
     console.error("Error fetching subcategories:", error);
     return [];
   }
+}
+
+async function getSubcategoriesForSurveyCached(survey: any): Promise<any[]> {
+  if (!survey || !survey._id) {
+    return getSubcategoriesForSurvey(survey);
+  }
+  const key = survey._id.toString();
+  if (surveySubcategoriesCache.has(key)) {
+    return surveySubcategoriesCache.get(key)!;
+  }
+  const subs = await getSubcategoriesForSurvey(survey);
+  surveySubcategoriesCache.set(key, subs);
+  return subs;
 }
 
 // Helper function to calculate scores from answers and questions/subcategories.
@@ -238,8 +254,10 @@ router.get("/", protect, async (req: any, res) => {
     
     const allResponses = await ResponseModel.find(responsesQuery)
       .populate("employee", "name email role department")
-      .populate("survey", "title questions categories")
-      .sort({ submittedAt: -1 });
+      .populate("evaluator", "name email role department")
+      .populate("survey", "title surveyName questions categories")
+      .sort({ submittedAt: -1 })
+      .lean();
     
     // Filter out responses with null employees and enforce viewing rules
     let responses = allResponses.filter((response: any) => {
@@ -277,6 +295,7 @@ router.get("/", protect, async (req: any, res) => {
     for (const response of responses) {
       const employee = response.employee as any;
       const survey = response.survey as any;
+      const evaluator = (response as any).evaluator as any;
 
       // Skip if employee or survey is null/undefined
       if (!employee || !survey) continue;
@@ -298,9 +317,17 @@ router.get("/", protect, async (req: any, res) => {
 
       const employeeId = employee._id.toString();
       const surveyId = survey._id.toString();
+      const evaluatorId =
+        evaluator && (evaluator._id || evaluator.id)
+          ? (evaluator._id || evaluator.id).toString()
+          : "";
       const employeeName = employee.name || "Unknown";
       const department = employee.department || "N/A";
-      const surveyTitle = survey.title || "Unknown Survey";
+      const surveyTitle = survey.title || survey.surveyName || "Unknown Survey";
+
+      const surveyTitleLower = surveyTitle.toLowerCase();
+      const isManagerForm = surveyTitleLower.includes("yönetici");
+      const isTeammateForm = surveyTitleLower.includes("takım arkadaşı");
 
       // Load KPI for this employee (from DB), with simple cache
       let userKpi = employeeKpiCache.get(employeeId);
@@ -310,8 +337,14 @@ router.get("/", protect, async (req: any, res) => {
         employeeKpiCache.set(employeeId, userKpi);
       }
       
-      // Create unique key for employee + survey combination
-      const resultKey = `${employeeId}_${surveyId}`;
+      // Create unique key for result aggregation
+      // - For self/keeper/general surveys: group by (employee, survey)
+      // - For manager/teammate surveys: group by (employee, survey, evaluator) so each
+      //   evaluation from a different person appears as a separate row in the results list.
+      const resultKey =
+        (isManagerForm || isTeammateForm) && evaluatorId
+          ? `${employeeId}_${surveyId}_${evaluatorId}`
+          : `${employeeId}_${surveyId}`;
 
       // Get or create employee+survey result entry
       if (!employeeResultsMap.has(resultKey)) {
@@ -323,6 +356,16 @@ router.get("/", protect, async (req: any, res) => {
           surveyTitle: surveyTitle,
           employeeName,
           department,
+          // For manager/teammate forms we keep track of who evaluated
+          evaluatorId: isManagerForm || isTeammateForm ? evaluatorId : undefined,
+          evaluatorName:
+            isManagerForm || isTeammateForm
+              ? evaluator?.name || ""
+              : undefined,
+          evaluatorEmail:
+            isManagerForm || isTeammateForm
+              ? evaluator?.email || ""
+              : undefined,
           date: response.submittedAt
             ? new Date(response.submittedAt).toLocaleDateString()
             : new Date().toLocaleDateString(),
@@ -359,7 +402,7 @@ router.get("/", protect, async (req: any, res) => {
       
       // If no questions in survey, fetch subcategories
       if (questionsForCalculation.length === 0) {
-        const subcategories = await getSubcategoriesForSurvey(survey);
+        const subcategories = await getSubcategoriesForSurveyCached(survey);
         // Convert subcategories to question format for calculateScores
         questionsForCalculation = (subcategories || [])
           .filter((subcat: any) => subcat && subcat._id)
@@ -373,7 +416,7 @@ router.get("/", protect, async (req: any, res) => {
           }));
       } else {
         // If survey has questions, also try to get subcategories to match answer IDs
-        const subcategories = await getSubcategoriesForSurvey(survey);
+        const subcategories = await getSubcategoriesForSurveyCached(survey);
         // Add subcategories to questions list (they might be the actual questions)
         const subcategoryQuestions = (subcategories || [])
           .filter((subcat: any) => subcat && subcat._id)
@@ -428,6 +471,9 @@ router.get("/", protect, async (req: any, res) => {
         surveyTitle: result.surveyTitle,
         employeeName: result.employeeName,
         department: result.department,
+        evaluatorId: result.evaluatorId,
+        evaluatorName: result.evaluatorName,
+        evaluatorEmail: result.evaluatorEmail,
         date: result.date,
         kpiScore: result.kpiScore ?? 0,
         potential: result.totalScores.potential / count,
@@ -461,23 +507,16 @@ router.get("/:employeeId", protect, async (req: any, res) => {
   try {
     const { employeeId } = req.params;
 
-    // Get all submitted responses and filter by employee ID
-    // This approach is more reliable as it handles different ID formats
-    const allResponses = await ResponseModel.find({ status: "submitted" })
+    // Get all submitted responses for this specific employee
+    const responses = await ResponseModel.find({
+      status: "submitted",
+      employee: employeeId,
+    })
       .populate("employee", "name email role department kpi")
       .populate("survey", "title questions categories")
-      .sort({ submittedAt: -1 });
-
-    // Filter responses where employee ID matches (handles both ObjectId and string formats)
-    // Also filter out any responses with null employees
-    const responses = allResponses.filter((response: any) => {
-      const emp = response.employee as any;
-      if (!emp || !emp._id) return false;
-      
-      const empId = emp._id?.toString() || emp.id?.toString() || emp._id || emp.id;
-      return empId === employeeId || empId?.toString() === employeeId?.toString();
-    });
-
+      .sort({ submittedAt: -1 })
+      .lean();
+    
     // For non-admin users, do not allow viewing detailed results of "yönetici" surveys
     if (req.user.role !== "admin") {
       const hasManagerSurvey = responses.some((response: any) => {
@@ -487,7 +526,7 @@ router.get("/:employeeId", protect, async (req: any, res) => {
       });
 
       if (hasManagerSurvey) {
-        return res.status(403).json({
+            return res.status(403).json({ 
           message: "Only admins can view results of manager surveys",
         });
       }

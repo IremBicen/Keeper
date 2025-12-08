@@ -1,3 +1,14 @@
+/**
+ * Maintenance script: bulk import or update users from a JSON file.
+ *
+ * Usage (from project root):
+ *   cd dovec-keeper-backend
+ *   npx ts-node src/importUsersFromJson.ts
+ *
+ * By default it reads ../dovec_users.json. Override with USERS_JSON_PATH.
+ * Existing users are matched by email and updated; new ones are created.
+ * Passwords are hashed via the User pre-save hook.
+ */
 import fs from "fs";
 import path from "path";
 import mongoose from "mongoose";

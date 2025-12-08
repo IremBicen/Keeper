@@ -1,3 +1,13 @@
+/**
+ * Maintenance script: create an initial admin user.
+ *
+ * Usage (from project root):
+ *   cd dovec-keeper-backend
+ *   ADMIN_EMAIL=... ADMIN_PASSWORD=... ADMIN_NAME=... npx ts-node src/createAdmin.ts
+ *
+ * Safe to run multiple times; it will not create a duplicate admin
+ * if one with the same email already exists.
+ */
 import mongoose from "mongoose";
 import User from "./models/User";
 import dotenv from "dotenv";

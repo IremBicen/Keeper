@@ -64,20 +64,50 @@ export default function SurveysPage() {
         const submitted = new Set<string>();
         (res.data || []).forEach((r: any) => {
           if (!r || r.status !== "submitted") return;
-          if (!r.employee) return;
-
-          const empId =
-            typeof r.employee === "string"
-              ? r.employee
-              : r.employee._id?.toString() || r.employee.id?.toString();
-          if (empId !== userId) return;
-
+          
           const surveyId =
             typeof r.survey === "string"
               ? r.survey
               : r.survey?._id?.toString() || r.survey?.id?.toString();
           if (!surveyId) return;
-          submitted.add(surveyId.toString());
+
+          const title = (
+            (r.survey && (r.survey as any).title) ||
+            (r.survey && (r.survey as any).surveyName) ||
+            ""
+          )
+            .toString()
+            .toLowerCase();
+
+          const isTeammateSurvey = title.includes("takım arkadaşı");
+          const isManagerSurvey = title.includes("yönetici");
+
+          // For self surveys, completion is based on employee === user
+          if (!isTeammateSurvey && !isManagerSurvey) {
+            if (!r.employee) return;
+            const empId =
+              typeof r.employee === "string"
+                ? r.employee
+                : r.employee._id?.toString() || r.employee.id?.toString();
+            if (empId !== userId) return;
+            submitted.add(surveyId.toString());
+            return;
+          }
+
+          // For yönetici surveys, completion is based on evaluator === user
+          if (isManagerSurvey) {
+            if (!r.evaluator) return;
+            const evalId =
+              typeof r.evaluator === "string"
+                ? r.evaluator
+                : (r.evaluator as any)._id?.toString() ||
+                  (r.evaluator as any).id?.toString();
+            if (evalId !== userId) return;
+            submitted.add(surveyId.toString());
+            return;
+          }
+
+          // For teammate surveys, users can have multiple targets → never hide the button globally
         });
 
         setSubmittedSurveyIds(submitted);
@@ -264,12 +294,8 @@ export default function SurveysPage() {
                                     const surveyId = (survey._id || (survey as any).id)?.toString();
                                     const title = (survey.title || survey.surveyName || "").toLowerCase();
                                     const isTeammateSurvey = title.includes("takım arkadaşı");
-                                    const isManagerSurvey = title.includes("yönetici");
-                                    const isSelfSurvey = !isTeammateSurvey && !isManagerSurvey;
                                     const alreadySubmitted =
-                                      isSelfSurvey &&
-                                      surveyId &&
-                                      submittedSurveyIds.has(surveyId);
+                                      surveyId && submittedSurveyIds.has(surveyId);
 
                                     return (
                                       <>
@@ -292,8 +318,8 @@ export default function SurveysPage() {
                                         >
                                           Preview
                                         </button>
-                                        {user?.role === "admin" && (
-                                          <>
+                                    {user?.role === "admin" && (
+                                      <>
                                             <button
                                               className="btn btn-edit"
                                               onClick={() => handleEditClick(survey)}
@@ -306,8 +332,8 @@ export default function SurveysPage() {
                                             >
                                               Delete
                                             </button>
-                                          </>
-                                        )}
+                                      </>
+                                    )}
                                       </>
                                     );
                                   })()}

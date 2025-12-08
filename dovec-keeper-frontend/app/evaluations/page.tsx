@@ -78,6 +78,11 @@ export default function EvaluationsPage() {
     fetchData();
   }, [token]);
 
+  const keeperSurveys = surveys.filter((s) => {
+    const title = (s.title || s.surveyName || "").toLowerCase();
+    return title.includes("keeper");
+  });
+
   const handleDepartmentChange = (dept: string) => {
     setSelectedDepartment(dept);
     setSelectedUser(null);
@@ -87,7 +92,12 @@ export default function EvaluationsPage() {
   const handleUserChange = (userId: string) => {
     const user = users.find(u => (u._id === userId || u.id === userId));
     setSelectedUser(user || null);
-    setSelectedSurvey(null);
+    // Automatically select the first Keeper survey for this evaluation page
+    if (user && keeperSurveys.length > 0) {
+      setSelectedSurvey(keeperSurveys[0]);
+    } else {
+      setSelectedSurvey(null);
+    }
   };
 
   const handleSurveySelect = (survey: Survey) => {
@@ -240,29 +250,17 @@ export default function EvaluationsPage() {
               )}
             </div>
 
-            {/* Survey Selection */}
+            {/* Survey info (Keeper only) */}
             <div className="form-group">
-              <label htmlFor="survey">
+              <label>
                 <span className="label-text">Survey</span>
                 <span className="label-required">*</span>
               </label>
-              <select
-                id="survey"
-                value={selectedSurvey?._id || ''}
-                onChange={(e) => {
-                  const survey = surveys.find(s => s._id === e.target.value);
-                  if (survey) handleSurveySelect(survey);
-                }}
-                className="form-select"
-                disabled={!selectedUser}
-              >
-                <option value="">-- Select --</option>
-                {surveys.map(survey => (
-                  <option key={survey._id} value={survey._id}>
-                    {survey.title || survey.surveyName} ({survey.status})
-                  </option>
-                ))}
-              </select>
+              <div style={{ color: "#e5e7eb" }}>
+                {keeperSurveys.length > 0
+                  ? keeperSurveys[0].title || keeperSurveys[0].surveyName
+                  : "No Keeper survey found"}
+              </div>
             </div>
 
             {/* Start Evaluation Button */}

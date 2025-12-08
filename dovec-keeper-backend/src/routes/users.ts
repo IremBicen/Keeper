@@ -17,10 +17,10 @@ router.get("/", protect, async (req: any, res) => {
     } else {
       // Managers can only see users in their department (non-evaluation use cases)
     if (req.user.role === "manager") {
-        const managerDept = req.user.department;
+        const managerDept = (req.user.department || "").toString().trim();
         if (!managerDept) {
         return res.status(403).json({ 
-          message: "Manager must have a department assigned to view users" 
+            message: "Manager must have a department assigned to view users",
         });
       }
         query.department = managerDept;

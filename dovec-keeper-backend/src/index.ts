@@ -14,8 +14,7 @@ dotenv.config();
 const app = express();
 
 const allowedOrigins = [
-  "http://localhost:3000",
-  "http://16.171.30.108:3000",
+  "http://localhost:3000"
 ];
 
 app.use(cors({

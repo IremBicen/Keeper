@@ -31,6 +31,12 @@
     gap: 1rem 1.5rem;
     margin-bottom: 1.5rem;
     align-items: flex-end;
+
+    /* Dark container */
+    padding: 0.9rem 1.1rem;
+    background-color: #1F2937;
+    border-radius: 0.75rem;
+    border: 1px solid #1f2937;
 }
 
 .results-filters .form-group {
@@ -38,8 +44,60 @@
     flex: 1 1 220px;
 }
 
+/* Dark, modern dropdown styling for Results filters */
+.results-filters .label-text {
+    display: block;
+    margin-bottom: 0.3rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #e5e7eb;
+}
+
+.results-filters .form-select {
+    width: 100%;
+    min-height: 2.6rem;
+    padding: 0.5rem 2.25rem 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    border: 1px solid #4b5563;
+    background-color: #111827;
+    color: #f9fafb;
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image:
+        linear-gradient(45deg, transparent 50%, #9ca3af 50%),
+        linear-gradient(135deg, #9ca3af 50%, transparent 50%);
+    background-position: right 0.9rem center, right 0.6rem center;
+    background-size: 6px 6px, 6px 6px;
+    background-repeat: no-repeat;
+    cursor: pointer;
+}
+
+.results-filters .form-select:hover {
+    border-color: #9ca3af;
+    background-color: #1f2937;
+}
+
+.results-filters .form-select:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 2px rgba(129, 140, 248, 0.5);
+}
+
 .results-search-input {
     max-width: 260px;
+}
+
+.results-table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.results-table-wrapper .table-container {
+    min-width: 800px;
 }
 
 @media (max-width: 900px) {

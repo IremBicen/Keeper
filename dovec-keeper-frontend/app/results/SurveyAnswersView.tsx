@@ -29,6 +29,13 @@ interface Response {
     email: string;
     department?: string;
   };
+  evaluator?: {
+    _id: string;
+    name: string;
+    email: string;
+    department?: string;
+    role?: string;
+  };
   answers: Answer[];
   status: string;
   submittedAt?: string;
@@ -41,12 +48,14 @@ interface CategoryWithSubcategories extends Category {
 interface SurveyAnswersViewProps {
   surveyId: string;
   employeeId: string;
+  evaluatorId?: string;
   onClose: () => void;
 }
 
 export default function SurveyAnswersView({
   surveyId,
   employeeId,
+  evaluatorId,
   onClose
 }: SurveyAnswersViewProps) {
   const [response, setResponse] = useState<Response | null>(null);
@@ -62,7 +71,10 @@ export default function SurveyAnswersView({
         setError(null);
 
         // Fetch response with answers
-        const responseRes = await api.get<Response>(`/responses/${surveyId}/${employeeId}`);
+        const path = `/responses/${surveyId}/${employeeId}${
+          evaluatorId ? `?evaluatorId=${evaluatorId}` : ""
+        }`;
+        const responseRes = await api.get<Response>(path);
         setResponse(responseRes.data);
 
         // Fetch all categories
@@ -151,6 +163,7 @@ export default function SurveyAnswersView({
 
   const survey = response.survey;
   const employee = response.employee;
+  const evaluator = response.evaluator;
 
   return (
     <div className="survey-answers-overlay" onClick={onClose}>
@@ -167,6 +180,15 @@ export default function SurveyAnswersView({
             <h3>Email: <span>{employee.email}</span></h3>
             <h3>Department: <span>{employee.department || 'N/A'}</span></h3>
           </div>
+          {evaluator && (
+            <div style={{ marginTop: '0.5rem' }}>
+              <h3>Evaluator: <span>{evaluator.name}</span></h3>
+              <h3>Evaluator Email: <span>{evaluator.email}</span></h3>
+              {evaluator.role && (
+                <h3>Evaluator Role: <span>{evaluator.role}</span></h3>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Dates Section */}

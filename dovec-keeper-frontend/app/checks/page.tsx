@@ -30,6 +30,7 @@ interface Survey {
 interface Response {
   _id: string;
   employee: User | string;
+  evaluator?: User | string;
   survey: Survey | string;
   status: string;
 }
@@ -103,30 +104,222 @@ export default function ChecksPage() {
     fetchData();
   }, [token, user]);
 
-  // Build completion map: employeeId -> Set of surveyIds that are submitted
+  // Build completion map: actorId -> (surveyId -> Set<targetEmployeeId>)
+  // actorId:
+  //  - self/keeper/general surveys: employee (self)
+  //  - manager/teammate surveys: evaluator (who filled the form)
   const completionMap = useMemo(() => {
-    const map = new Map<string, Set<string>>();
+    const map = new Map<string, Map<string, Set<string>>>();
     (responses || []).forEach((r) => {
       if (!r || r.status !== "submitted") return;
-      const employeeIdRaw =
-        typeof r.employee === "string"
-          ? r.employee
-          : (r.employee as any)?._id || (r.employee as any)?.id;
+
+      // Determine survey type (manager / teammate / other)
+      const surveyObj: any =
+        typeof r.survey === "string" ? null : (r.survey as any);
+      const surveyTitleLower = (
+        surveyObj?.title ||
+        surveyObj?.surveyName ||
+        ""
+      )
+        .toString()
+        .toLowerCase();
+      const isManagerForm = surveyTitleLower.includes("yönetici");
+      const isTeammateForm = surveyTitleLower.includes("takım arkadaşı");
+
+      const evaluatorIdRaw =
+        typeof r.evaluator === "string"
+          ? r.evaluator
+          : (r.evaluator as any)?._id || (r.evaluator as any)?.id;
       const surveyIdRaw =
         typeof r.survey === "string"
           ? r.survey
           : (r.survey as any)?._id || (r.survey as any)?.id;
-      const employeeId = employeeIdRaw?.toString();
-      const surveyId = surveyIdRaw?.toString();
-      if (!employeeId || !surveyId) return;
+      const employeeIdRaw =
+        typeof r.employee === "string"
+          ? r.employee
+          : (r.employee as any)?._id || (r.employee as any)?.id;
 
-      if (!map.has(employeeId)) {
-        map.set(employeeId, new Set<string>());
+      // actorId is the person whose completion we track
+      let actorIdRaw: any;
+      if (isManagerForm || isTeammateForm) {
+        // For manager/teammate forms, track completion per evaluator
+        actorIdRaw = evaluatorIdRaw || employeeIdRaw;
+      } else {
+        // For self/keeper/general forms, track completion per employee (self)
+        actorIdRaw = employeeIdRaw;
       }
-      map.get(employeeId)!.add(surveyId);
+
+      const actorId = actorIdRaw?.toString();
+      const surveyId = surveyIdRaw?.toString();
+      const targetId = employeeIdRaw?.toString();
+      if (!actorId || !surveyId || !targetId) return;
+
+      if (!map.has(actorId)) {
+        map.set(actorId, new Map<string, Set<string>>());
+      }
+      const bySurvey = map.get(actorId)!;
+      if (!bySurvey.has(surveyId)) {
+        bySurvey.set(surveyId, new Set<string>());
+      }
+      bySurvey.get(surveyId)!.add(targetId);
     });
     return map;
   }, [responses]);
+
+  const usersById = useMemo(() => {
+    const m = new Map<string, User>();
+    (users || []).forEach((u) => {
+      const idRaw = (u as any)?._id || (u as any)?.id;
+      if (!idRaw) return;
+      m.set(idRaw.toString(), u);
+    });
+    return m;
+  }, [users]);
+
+  const surveysById = useMemo(() => {
+    const m = new Map<string, Survey>();
+    (surveys || []).forEach((s) => {
+      const idRaw = (s as any)?._id || (s as any)?.id;
+      if (!idRaw) return;
+      m.set(idRaw.toString(), s);
+    });
+    return m;
+  }, [surveys]);
+
+  const getUserId = (u: User) =>
+    ((u as any)?._id || (u as any)?.id)?.toString() || "";
+
+  const getSurveyId = (s: Survey) =>
+    ((s as any)?._id || (s as any)?.id)?.toString() || "";
+
+  const getSubmittedTargets = (evaluatorId: string, surveyId: string) => {
+    const bySurvey = completionMap.get(evaluatorId);
+    if (!bySurvey) return new Set<string>();
+    return bySurvey.get(surveyId) || new Set<string>();
+  };
+
+  const getCompletionStats = (u: User, survey: Survey) => {
+    const uId = getUserId(u);
+    const sId = getSurveyId(survey);
+    if (!uId || !sId)
+      return { filled: 0, required: 0, isManagerForm: false, isTeammateForm: false };
+
+    const title = (survey.title || survey.surveyName || "").toLowerCase();
+    const isManagerForm = title.includes("yönetici");
+    const isTeammateForm = title.includes("takım arkadaşı");
+
+    const role = (u.role || "").toLowerCase();
+    const deptRaw = (u.department || "").toString().trim();
+    const dept = deptRaw;
+
+    const submittedTargets = getSubmittedTargets(uId, sId);
+
+    if (isManagerForm) {
+      if (!dept)
+        return { filled: 0, required: 0, isManagerForm, isTeammateForm };
+
+      const deptNorm = dept.toString().trim().toLowerCase();
+
+      const inSameDept = (v: User) => {
+        const mainDept = (v.department || "").toString().trim().toLowerCase();
+        const extraDepts = Array.isArray((v as any).departments)
+          ? (v as any).departments.map((d: any) =>
+              d?.toString().trim().toLowerCase()
+            )
+          : [];
+        const allDepts = [mainDept, ...extraDepts].filter(Boolean);
+        return allDepts.includes(deptNorm) && getUserId(v) !== uId;
+      };
+
+      let requiredUsers: User[] = [];
+
+      if (role === "employee") {
+        // Employee fallback logic: manager -> coordinator -> director
+        const managers = users.filter(
+          (v) => (v.role || "").toLowerCase() === "manager" && inSameDept(v)
+        );
+        const coordinators = users.filter(
+          (v) => (v.role || "").toLowerCase() === "coordinator" && inSameDept(v)
+        );
+        const directors = users.filter(
+          (v) => (v.role || "").toLowerCase() === "director" && inSameDept(v)
+        );
+
+        if (managers.length) {
+          requiredUsers = managers;
+        } else if (coordinators.length) {
+          requiredUsers = coordinators;
+        } else if (directors.length) {
+          requiredUsers = directors;
+        }
+      } else if (role === "manager") {
+        // Manager must evaluate all coordinators and directors in their department(s)
+        requiredUsers = users.filter(
+          (v) =>
+            inSameDept(v) &&
+            ["coordinator", "director"].includes(
+              (v.role || "").toLowerCase()
+            )
+        );
+      } else if (role === "coordinator") {
+        // Coordinator evaluates all directors in their department(s)
+        requiredUsers = users.filter(
+          (v) =>
+            inSameDept(v) && (v.role || "").toLowerCase() === "director"
+        );
+      } else {
+        // Directors (and any other roles) have no superior requirement
+        requiredUsers = [];
+      }
+
+      const requiredTargets = requiredUsers
+        .map((v) => getUserId(v))
+        .filter(Boolean);
+
+      const filled = requiredTargets.filter((tid) => submittedTargets.has(tid))
+        .length;
+      const required = requiredTargets.length;
+
+      return { filled, required, isManagerForm, isTeammateForm };
+    }
+
+    if (isTeammateForm) {
+      if (!dept)
+        return { filled: 0, required: 0, isManagerForm, isTeammateForm };
+
+      const teammates = users.filter((v) => {
+        const vDept = (v.department || "").toString().trim();
+        const vRole = (v.role || "").toLowerCase();
+        const vId = getUserId(v);
+        return (
+          vRole === "employee" &&
+          vDept === dept &&
+          vId &&
+          vId !== uId
+        );
+      });
+
+      const required = teammates.length;
+      const filled = teammates.filter((tm) =>
+        submittedTargets.has(getUserId(tm))
+      ).length;
+
+      return { filled, required, isManagerForm, isTeammateForm };
+    }
+
+    // Default: self-surveys (e.g. keeper) → completed if they evaluated themselves
+    const filled = submittedTargets.has(uId) ? 1 : 0;
+    const required = 1;
+
+    return { filled, required, isManagerForm, isTeammateForm };
+  };
+
+  const isCellFilled = (u: User, survey: Survey): boolean => {
+    const { filled, required } = getCompletionStats(u, survey);
+    // If nothing is required (no superior, no teammates, etc.), treat as completed
+    if (required === 0) return true;
+    return filled >= required;
+  };
 
   const sortedSurveys = useMemo(() => {
     return [...surveys].sort((a, b) => {
@@ -143,17 +336,8 @@ export default function ChecksPage() {
 
     if (onlyIncomplete && sortedSurveys.length > 0) {
       list = list.filter((u) => {
-        const empIdRaw = (u as any)?._id || (u as any)?.id;
-        if (!empIdRaw) return false;
-        const empId = empIdRaw.toString();
-        const submitted = completionMap.get(empId) || new Set<string>();
-        // user is incomplete if at least one survey is not in submitted
-        return sortedSurveys.some((s) => {
-          const sIdRaw = (s as any)?._id || (s as any)?.id;
-          if (!sIdRaw) return false;
-          const sId = sIdRaw.toString();
-          return !submitted.has(sId);
-        });
+        // user is incomplete if at least one survey is not completed
+        return sortedSurveys.some((s) => !isCellFilled(u, s));
       });
     }
 
@@ -209,7 +393,6 @@ export default function ChecksPage() {
                     const empIdRaw = (u as any)?._id || (u as any)?.id;
                     if (!empIdRaw) return null;
                     const empId = empIdRaw.toString();
-                    const submitted = completionMap.get(empId) || new Set<string>();
                     return (
                       <tr key={empId}>
                         <td>
@@ -224,13 +407,28 @@ export default function ChecksPage() {
                           const sIdRaw = (survey as any)?._id || (survey as any)?.id;
                           if (!sIdRaw) return null;
                           const sId = sIdRaw.toString();
-                          const filled = submitted.has(sId);
+
+                          const {
+                            filled,
+                            required,
+                            isManagerForm,
+                            isTeammateForm,
+                          } = getCompletionStats(u, survey);
+                          const completed = isCellFilled(u, survey);
+
+                          const showFraction =
+                            (isManagerForm || isTeammateForm) && required > 0;
+
                           return (
                             <td
                               key={sId}
-                              className={filled ? "checks-cell-filled" : "checks-cell-missing"}
+                              className={completed ? "checks-cell-filled" : "checks-cell-missing"}
                             >
-                              {filled ? "✔" : "✖"}
+                              {showFraction
+                                ? `${filled}/${required}`
+                                : completed
+                                ? "✔"
+                                : "✖"}
                             </td>
                           );
                         })}

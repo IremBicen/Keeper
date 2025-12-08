@@ -12,19 +12,27 @@ export interface IUser extends Document {
   comparePassword: (candidate: string) => Promise<boolean>;
 }
 
-const UserSchema: Schema = new Schema({
+const UserSchema: Schema = new Schema(
+  {
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  role: {
-    type: String,
-    enum: ["admin", "director", "coordinator", "manager", "employee"],
-    default: "manager",
-  },
+    role: {
+      type: String,
+      enum: ["admin", "director", "coordinator", "manager", "employee"],
+      default: "manager",
+    },
   department: { type: String, default: null },
-  departments: { type: [String], default: [] },
-  kpi: { type: Number, default: 0, min: 0 } // KPI score for each user (admin can set this)
-}, { timestamps: true });
+    departments: { type: [String], default: [] },
+    kpi: { type: Number, default: 0, min: 0 }, // KPI score for each user (admin can set this)
+  },
+  { timestamps: true }
+);
+
+UserSchema.index({ email: 1 }, { unique: true });
+UserSchema.index({ role: 1 });
+UserSchema.index({ department: 1 });
+UserSchema.index({ departments: 1 });
 
 UserSchema.pre<IUser>("save", async function (next) {
   if (!this.isModified("password")) return next();

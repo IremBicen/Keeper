@@ -197,15 +197,6 @@ export default function SurveyForm({ survey, onClose, onSubmit }: SurveyFormProp
                 const allUsers = res.data || [];
                 const userDepartment = user.department || (user as any)?.department;
                 
-                // Debug logging
-                console.log("User department:", userDepartment);
-                console.log("All users from API:", allUsers);
-                console.log("Users with departments:", allUsers.map((u: Teammate) => ({ 
-                    name: u.name, 
-                    department: u.department, 
-                    role: u.role 
-                })));
-                
                 const filtered = allUsers.filter((u: Teammate) => {
                     const userId = (user as any)?.id?.toString() || (user as any)?._id?.toString();
                     const uId = u._id?.toString() || u.id?.toString();
@@ -221,7 +212,6 @@ export default function SurveyForm({ survey, onClose, onSubmit }: SurveyFormProp
                     return isSameDepartment && isNotSelf && isValidRole;
                 });
                 
-                console.log("Filtered teammates:", filtered);
                 setTeammates(filtered);
             } catch (err) {
                 console.error("Error fetching teammates:", err);

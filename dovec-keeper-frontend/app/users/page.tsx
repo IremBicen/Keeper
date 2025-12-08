@@ -50,7 +50,6 @@ function UsersPageComponent() {
         setLoading(true);
         const res = await api.get<User[]>('/users');
         setUsersData(res.data || []);
-        console.log('Users data:', res.data);
 
       } catch (err: any) {
         console.error('Error fetching users:', err);
@@ -82,9 +81,7 @@ function UsersPageComponent() {
     
     try {
       setLoadingUser(true);
-      console.log(`🔄 Fetching user details for ID: ${userId}`);
       const res = await api.get<User>(`/users/${userId}`);
-      console.log('✅ User details fetched:', res.data);
       return res.data;
     } catch (err: any) {
       console.error('❌ Error fetching user:', err);

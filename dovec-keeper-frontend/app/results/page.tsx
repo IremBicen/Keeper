@@ -113,7 +113,6 @@ function ResultsPageContent() {
                     if (compositeKey && typeof compositeKey === 'string' && compositeKey.includes('_')) {
                         // Extract employeeId from composite key (format: employeeId_surveyId)
                         employeeId = compositeKey.split('_')[0];
-                        console.log('⚠️ Extracted employeeId from composite key:', employeeId);
                     } else {
                         // Fallback: ensure we always convert compositeKey to string
                         employeeId = compositeKey?.toString();
@@ -128,7 +127,6 @@ function ResultsPageContent() {
                     return;
                 }
                 
-                console.log('🔍 Using employeeId for API calls:', employeeId);
                 
                 const res = await api.get<EmployeeResult>(`/results/${employeeId}`, {
                     headers: { Authorization: `Bearer ${token}` },
@@ -193,6 +191,7 @@ function ResultsPageContent() {
         new Set(
             resultsData
                 .filter((item) => item && item.employeeName)
+                .filter((item) => !departmentFilter || item.department === departmentFilter)
                 .map((item) => item.employeeName as string)
         )
     ).sort();
@@ -262,7 +261,7 @@ function ResultsPageContent() {
                     </button>
                 </header>
                 <div className="box-container">
-                    {/* Filters and search */}
+                    {/* Filters */}
                     <div className="results-filters">
                         <div className="form-group">
                             <label htmlFor="departmentFilter" className="label-text">
@@ -322,54 +321,55 @@ function ResultsPageContent() {
                         </div>
                     </div>
 
-                    <table className="table-container">
-                        <thead>
-                            <tr>
-                                <th>Employee Name</th>
-                                <th>Department</th>
-                                <th>Survey Name</th>
-                                <th>Date</th>
-                                <th>Performance Score</th>
-                                <th>Contribution Score</th>
-                                <th>Potential Score</th>
-                                <th>Keeper Score</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {loading ? (
+                    <div className="results-table-wrapper">
+                        <table className="table-container">
+                            <thead>
                                 <tr>
-                                    <td colSpan={9} style={{ textAlign: "center" }}>Loading...</td>
+                                    <th>Employee Name</th>
+                                    <th>Department</th>
+                                    <th>Survey Name</th>
+                                    <th>Date</th>
+                                    <th>Performance Score</th>
+                                    <th>Contribution Score</th>
+                                    <th>Potential Score</th>
+                                    <th>Keeper Score</th>
+                                    <th>Action</th>
                                 </tr>
-                            ) : filteredResults.length === 0 ? (
-                                <tr>
-                                    <td colSpan={9} style={{ textAlign: "center" }}>No results found</td>
-                                </tr>
-                            ) : (
-                                filteredResults.map((result) => (
-                                    <tr key={result._id || result.id || `result-${Math.random()}`}>
-                                        <td>{result.employeeName}</td>
-                                        <td>{result.department}</td>
-                                        <td>{result.surveyTitle || 'Unknown Survey'}</td>
-                                        <td>{result.date}</td>
-                                        <td>{result.performanceScore?.toFixed(1) || '0.0'}</td>
-                                        <td>{result.contributionScore?.toFixed(1) || '0.0'}</td>
-                                        <td>{result.potentialScore?.toFixed(1) || '0.0'}</td>
-                                        <td>{result.keeperScore?.toFixed(1) || '0.0'}</td>
-                                        <td className="action-cell">
-                                            <button className="btn btn-secondary" onClick={() => handleViewClick(result)}>View</button>
-                                            <button className="btn btn-light" onClick={() => {
-                                                // Navigate to user details page
-                                                const employeeId = result.employeeId || result._id || result.id;
-                                                if (!employeeId) return;
-                                                router.push(`/users?employeeId=${employeeId}&source=results`);
-                                            }}>User Details</button>
-                                        </td>
+                            </thead>
+                            <tbody>
+                                {loading ? (
+                                    <tr>
+                                        <td colSpan={9} style={{ textAlign: "center" }}>Loading...</td>
                                     </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
+                                ) : filteredResults.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={9} style={{ textAlign: "center" }}>No results found</td>
+                                    </tr>
+                                ) : (
+                                    filteredResults.map((result) => (
+                                        <tr key={result._id || result.id || `result-${Math.random()}`}>
+                                            <td>{result.employeeName}</td>
+                                            <td>{result.department}</td>
+                                            <td>{result.surveyTitle || 'Unknown Survey'}</td>
+                                            <td>{result.date}</td>
+                                            <td>{result.performanceScore?.toFixed(1) || '0.0'}</td>
+                                            <td>{result.contributionScore?.toFixed(1) || '0.0'}</td>
+                                            <td>{result.potentialScore?.toFixed(1) || '0.0'}</td>
+                                            <td>{result.keeperScore?.toFixed(1) || '0.0'}</td>
+                                            <td className="action-cell">
+                                                <button className="btn btn-secondary" onClick={() => handleViewClick(result)}>View</button>
+                                                <button className="btn btn-light" onClick={() => {
+                                                    const employeeId = result.employeeId || result._id || result.id;
+                                                    if (!employeeId) return;
+                                                    router.push(`/users?employeeId=${employeeId}&source=results`);
+                                                }}>User Details</button>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
                 
                 {/* If an employee is selected for keeper survey, display the calculated scores */}
@@ -392,6 +392,7 @@ function ResultsPageContent() {
                     <SurveyAnswersView
                         surveyId={selectedResultForAnswers.surveyId || ''}
                         employeeId={selectedResultForAnswers.employeeId || selectedResultForAnswers._id || ''}
+                        evaluatorId={selectedResultForAnswers.evaluatorId}
                         onClose={() => {
                             setShowAnswersView(false);
                             setSelectedResultForAnswers(null);

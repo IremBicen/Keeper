@@ -1,3 +1,15 @@
+/**
+ * Maintenance script: create a single user from environment variables.
+ *
+ * Usage (from project root):
+ *   cd dovec-keeper-backend
+ *   set NEW_USER_EMAIL=...; set NEW_USER_PASSWORD=...; set NEW_USER_NAME=...
+ *   set NEW_USER_ROLE=employee|manager|coordinator|director|admin
+ *   set NEW_USER_DEPARTMENT=Dept1,Dept2
+ *   npx ts-node src/createUserFromEnv.ts
+ *
+ * Intended for manual administration / data fixes, not for regular runtime.
+ */
 import mongoose from "mongoose";
 import dotenv from "dotenv";
 import User from "./models/User";

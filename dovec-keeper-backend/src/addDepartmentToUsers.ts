@@ -1,3 +1,13 @@
+/**
+ * Maintenance script: add or fix the `department` field for existing users.
+ *
+ * Usage (from project root):
+ *   cd dovec-keeper-backend
+ *   npx ts-node src/addDepartmentToUsers.ts
+ *
+ * This is NOT used by the running server. Run it manually when you
+ * need to backfill or correct departments after a data migration.
+ */
 import mongoose from "mongoose";
 import User from "./models/User";
 import dotenv from "dotenv";

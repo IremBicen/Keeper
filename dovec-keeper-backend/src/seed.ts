@@ -1,3 +1,13 @@
+/**
+ * Local development seeding script.
+ *
+ * WARNING: This script deletes ALL users, categories and surveys
+ * in the target database and recreates a minimal set of sample data.
+ *
+ * Usage (for local dev only):
+ *   cd dovec-keeper-backend
+ *   npx ts-node src/seed.ts
+ */
 import mongoose from "mongoose";
 import dotenv from "dotenv";
 import User from "./models/User";

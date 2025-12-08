@@ -5,6 +5,9 @@ export interface EmployeeResult {
   employeeId?: string;
   employeeName: string;
   department: string;
+  evaluatorId?: string;
+  evaluatorName?: string;
+  evaluatorEmail?: string;
   profilePicture?: string;
   role?: string;
   surveyId?: string;

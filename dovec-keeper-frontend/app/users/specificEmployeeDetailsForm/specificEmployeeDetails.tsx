@@ -38,7 +38,6 @@ export default function SpecificEmployeeDetails({
         // If it's a composite key (employeeId_surveyId), extract just the employeeId
         if (idString.includes('_')) {
             const baseId = idString.split('_')[0];
-            console.log('⚠️ Extracted base employeeId from composite key:', baseId, 'original:', idString);
             return baseId;
         }
         return idString;
@@ -63,8 +62,6 @@ export default function SpecificEmployeeDetails({
             setLoadError('');
 
             try {
-                console.log('🔍 Loading employee details for ID:', normalizedEmployeeId);
-
                 // 1) Fetch user data to get name, department and KPI
                 const userRes = await api.get(`/users/${normalizedEmployeeId}`, {
                     headers: { Authorization: `Bearer ${token}` },
@@ -109,8 +106,6 @@ export default function SpecificEmployeeDetails({
                         .map((id) => String(id))
                         .filter((id, index, arr) => arr.indexOf(id) === index);
 
-                    console.log('🔎 IDs to try for results:', idsToTry);
-
                     let resultsRes: { data: EmployeeResult } | null = null;
                     let lastError: any = null;
                     let found404 = false;
@@ -118,7 +113,6 @@ export default function SpecificEmployeeDetails({
                     for (const id of idsToTry) {
                         if (!id) continue;
                         try {
-                            console.log(`   Trying results with ID: ${id}`);
                             const res = await api.get<EmployeeResult>(`/results/${id}`, {
                                 headers: { Authorization: `Bearer ${token}` },
                             });
@@ -130,19 +124,13 @@ export default function SpecificEmployeeDetails({
 
                             if (status === 404) {
                                 found404 = true;
-                                console.log(`   ℹ️ No results found for ID ${id} (employee may not have submitted surveys yet)`);
                                 break;
                             }
-
-                            const message = err.response?.data?.message || err.message;
-                            console.log(`   ❌ Failed to fetch results with ID ${id}:`, status, message);
                         }
                     }
 
                     if (resultsRes) {
                         const resultsData = resultsRes.data;
-                        console.log('✅ Employee results received:', resultsData);
-
                         setEmployee((prev) => {
                             const current = prev || baseEmployee;
                             return {
@@ -156,13 +144,7 @@ export default function SpecificEmployeeDetails({
                         console.error('❌ Unexpected error fetching employee results:', lastError);
                     }
                 } catch (resultsErr: any) {
-                    if (resultsErr.response?.status === 404) {
-                        console.log('ℹ️ No results found for this employee - they may not have submitted surveys yet');
-                    } else {
-                        console.error('❌ Error fetching employee results:', resultsErr);
-                        console.error('   Status:', resultsErr.response?.status);
-                        console.error('   Message:', resultsErr.response?.data?.message);
-                    }
+                    console.error('❌ Error fetching employee results:', resultsErr);
                 }
 
                 // 3) Fetch survey count separately
@@ -217,41 +199,23 @@ export default function SpecificEmployeeDetails({
         const currentKpi = userKpi !== undefined ? userKpi : (employee?.kpiScore || 0);
         if (!isEditingKpi) {
             setEditedKpi(currentKpi);
-            console.log('📝 Updated editedKpi from userKpi/current employee:', currentKpi);
         }
     }, [userKpi, employee?.kpiScore, isEditingKpi]);
-
-    // Debug: Log component state when key values change
-    useEffect(() => {
-        console.log('🔍 SpecificEmployeeDetails state:', {
-            employeeId: normalizedEmployeeId,
-            userKpi,
-            employeeKpiScore: employee?.kpiScore,
-            userRole: user?.role,
-            hasToken: !!token,
-            isModal,
-            isEditingKpi,
-            surveyCount,
-        });
-    }, [normalizedEmployeeId, userKpi, employee?.kpiScore, user?.role, token, isModal, isEditingKpi, surveyCount]);
 
     const handleSaveKpi = async () => {
         // Check if employeeId is available
         if (!normalizedEmployeeId) {
             setKpiError('Employee ID is missing. Cannot update KPI.');
-            console.error('❌ Cannot update KPI: employeeId is missing');
             return;
         }
         
         if (!token) {
             setKpiError('Authentication token is missing.');
-            console.error('❌ Cannot update KPI: token is missing');
             return;
         }
         
         if (user?.role !== 'admin') {
             setKpiError('Only admins can update KPI');
-            console.error('❌ Cannot update KPI: user role is', user?.role);
             return;
         }
 
@@ -259,20 +223,10 @@ export default function SpecificEmployeeDetails({
         setKpiError('');
         
         try {
-            console.log(`💾 Updating KPI for employee ${normalizedEmployeeId} to ${editedKpi}`);
-            console.log(`   API endpoint: /users/${normalizedEmployeeId}`);
-            console.log(`   Request body:`, { kpi: editedKpi });
-            console.log(`   Has token:`, !!token);
-            
             // Update KPI in database using normalized employeeId
             const response = await api.put(`/users/${normalizedEmployeeId}`, { kpi: editedKpi }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            
-            console.log('✅ KPI updated successfully:', response.data);
-            console.log('   Updated user KPI:', response.data.kpi);
-            console.log('   Response status:', response.status);
-            
             // Verify the KPI was actually saved
             if (response.data.kpi !== editedKpi) {
                 console.warn('⚠️ KPI value mismatch! Expected:', editedKpi, 'Got:', response.data.kpi);
@@ -285,11 +239,9 @@ export default function SpecificEmployeeDetails({
             
             // Optionally refetch results so calculated scores use the new KPI
             try {
-                console.log('   Fetching recalculated results from /results/' + normalizedEmployeeId);
                 const resultsRes = await api.get<EmployeeResult>(`/results/${normalizedEmployeeId}`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
-                console.log('✅ Employee results refreshed with new calculations:', resultsRes.data);
                 setEmployee(prev => {
                     const current = prev || resultsRes.data;
                     return {
@@ -298,25 +250,15 @@ export default function SpecificEmployeeDetails({
                     };
                 });
             } catch (resultsErr: any) {
-                if (resultsErr.response?.status === 404) {
-                    console.log('ℹ️ No results found for this user after KPI update (404) - user may not have submitted surveys yet');
-                } else {
+                if (resultsErr.response?.status !== 404) {
                     console.error('❌ Error fetching results after KPI update:', resultsErr);
-                    console.error('   Status:', resultsErr.response?.status);
-                    console.error('   Message:', resultsErr.response?.data?.message);
                 }
             }
             
             setIsEditingKpi(false);
-            console.log('✅ KPI update process completed');
         } catch (err: any) {
             const errorMessage = err.response?.data?.message || err.message || 'Failed to update KPI';
             setKpiError(errorMessage);
-            console.error('❌ Error updating KPI:', err);
-            console.error('   Error response:', err.response?.data);
-            console.error('   Error status:', err.response?.status);
-            console.error('   Error message:', err.message);
-            console.error('   EmployeeId used:', normalizedEmployeeId);
             // Don't close edit mode on error so user can try again
         } finally {
             setIsSavingKpi(false);
@@ -384,12 +326,11 @@ export default function SpecificEmployeeDetails({
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             <input type="text" value={currentKpi.toFixed(1)} readOnly style={{ flex: 1 }} />
                             <button 
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    console.log('✏️ Edit KPI clicked, employeeId:', employeeId, 'currentKpi:', currentKpi);
-                                    setIsEditingKpi(true);
-                                }} 
+                                        onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setIsEditingKpi(true);
+                                    }} 
                                 className="btn btn-light btn-sm" 
                                 style={{ padding: '0.25rem 0.5rem', fontSize: '0.875rem' }}
                             >
@@ -405,9 +346,7 @@ export default function SpecificEmployeeDetails({
                                 onChange={(e) => {
                                     const newValue = parseFloat(e.target.value) || 0;
                                     setEditedKpi(newValue);
-                                    console.log('📝 KPI input changed to:', newValue);
                                 }}
-                                onFocus={() => console.log('🔍 KPI input focused, employeeId:', employeeId, 'token:', !!token, 'user role:', user?.role)}
                                 className="kpi-edit-input"
                                 style={{ width: '100%', marginBottom: '0.5rem', padding: '0.5rem' }}
                                 autoFocus
@@ -417,7 +356,6 @@ export default function SpecificEmployeeDetails({
                                     onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
-                                        console.log('💾 Save KPI clicked, employeeId:', employeeId, 'value:', editedKpi);
                                         handleSaveKpi();
                                     }} 
                                     className="btn btn-success btn-sm"
@@ -528,7 +466,6 @@ export default function SpecificEmployeeDetails({
                                         onClick={(e) => {
                                             e.preventDefault();
                                             e.stopPropagation();
-                                            console.log('✏️ Edit KPI clicked, employeeId:', employeeId, 'currentKpi:', currentKpi);
                                             setIsEditingKpi(true);
                                         }} 
                                         className="edit-kpi-btn" 
@@ -546,9 +483,7 @@ export default function SpecificEmployeeDetails({
                                         onChange={(e) => {
                                             const newValue = parseFloat(e.target.value) || 0;
                                             setEditedKpi(newValue);
-                                            console.log('📝 KPI input changed to:', newValue);
                                         }}
-                                        onFocus={() => console.log('🔍 KPI input focused, employeeId:', employeeId, 'token:', !!token, 'user role:', user?.role)}
                                         className="kpi-edit-input"
                                         style={{ width: '80px', marginRight: '0.5rem', padding: '0.25rem' }}
                                         autoFocus
@@ -557,7 +492,6 @@ export default function SpecificEmployeeDetails({
                                         onClick={(e) => {
                                             e.preventDefault();
                                             e.stopPropagation();
-                                            console.log('💾 Save KPI clicked, employeeId:', employeeId, 'value:', editedKpi);
                                             handleSaveKpi();
                                         }} 
                                         className="btn btn-success btn-sm" 
