@@ -1,13 +1,25 @@
 // utils/api.ts
 import axios from "axios";
 
+// Base URL'i ortam değişkeninden al; yoksa tarayıcı origin'ini kullan
+const getBaseURL = () => {
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL + "/api";
+  }
+
+  if (typeof window !== "undefined" && window.location?.origin) {
+    // Örn: http://13.51.140.18 + /api
+    return `${window.location.origin}/api`;
+  }
+
+  // Geliştirme ortamı için varsayılan
+  return "http://localhost:5000/api";
+};
+
 const api = axios.create({
-  baseURL: (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000") + "/api",
+  baseURL: getBaseURL(),
   withCredentials: true, // eğer cookie göndereceksen
 });
-
-
-
 
 // Add request interceptor to include token in all requests
 api.interceptors.request.use(
