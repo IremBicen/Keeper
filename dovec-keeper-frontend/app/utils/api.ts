@@ -1,18 +1,20 @@
 // utils/api.ts
 import axios from "axios";
 
-// Base URL'i ortam değişkeninden al; yoksa tarayıcı origin'ini kullan
+// Base URL'i öncelikle tarayıcı origin'inden al; bu sayede prod'da backend her zaman
+// aynı domain üzerinden (/api prefix'i ile) çağrılır.
 const getBaseURL = () => {
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL + "/api";
-  }
-
   if (typeof window !== "undefined" && window.location?.origin) {
     // Örn: http://13.51.140.18 + /api
     return `${window.location.origin}/api`;
   }
 
-  // Geliştirme ortamı için varsayılan
+  // SSR veya local geliştirme için geri dönüş
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL + "/api";
+  }
+
+  // Son çare: local backend
   return "http://localhost:5000/api";
 };
 
