@@ -17,7 +17,7 @@ const results_1 = __importDefault(require("./routes/results"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 app.use((0, cors_1.default)({
-    origin: 'http://13.60.162.249:3000', // frontend’in public IP + port
+    origin:  "http://13.51.140.18", // frontend’in public IP + port
     credentials: true
 }));
 app.use(express_1.default.json());
