@@ -29,6 +29,8 @@ function UsersPageComponent() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingUser, setLoadingUser] = useState(false);
+  const [sendingPasswordUserId, setSendingPasswordUserId] = useState<string | null>(null);
+  const [sendingAll, setSendingAll] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Redirect employees away from this page
@@ -101,6 +103,46 @@ function UsersPageComponent() {
     }
   };
 
+  const sendPasswordForUser = async (userId: string, email: string) => {
+    if (!token || !currentUser || currentUser.role !== "admin") return;
+    try {
+      setSendingPasswordUserId(userId);
+      await api.post(`/users/${userId}/send-password`);
+      alert(`Password email sent to ${email}`);
+    } catch (err: any) {
+      console.error("Error sending password email:", err);
+      const message = err.response?.data?.message || err.message || "Failed to send password email.";
+      alert(message);
+    } finally {
+      setSendingPasswordUserId(null);
+    }
+  };
+
+  const sendPasswordsForAll = async () => {
+    if (!token || !currentUser || currentUser.role !== "admin") return;
+    if (!usersData.length) return;
+    const confirmSend = window.confirm(
+      "This will reset passwords and send a new password email to all listed users. Continue?"
+    );
+    if (!confirmSend) return;
+
+    try {
+      setSendingAll(true);
+      for (const u of usersData) {
+        const id = u._id || u.id;
+        if (!id) continue;
+        try {
+          await api.post(`/users/${id}/send-password`);
+        } catch (err) {
+          console.error("Error sending password for user", id, err);
+        }
+      }
+      alert("Password emails have been sent (where possible).");
+    } finally {
+      setSendingAll(false);
+    }
+  };
+
   // ---------------- User link ile seçme ----------------
   useEffect(() => {
     const userId = searchParams.get('employeeId') || searchParams.get('userId');
@@ -157,6 +199,15 @@ function UsersPageComponent() {
       <main className="dashboard-main users-main">
         <header className="users-header">
           <h1 className="users-title">Users</h1>
+          {currentUser?.role === "admin" && (
+            <button
+              className="btn btn-primary"
+              onClick={sendPasswordsForAll}
+              disabled={sendingAll || loading}
+            >
+              {sendingAll ? "Sending Passwords..." : "Send Passwords"}
+            </button>
+          )}
         </header>
 
         {error && (
@@ -227,6 +278,26 @@ function UsersPageComponent() {
                           >
                             {loadingUser ? 'Loading...' : 'See Details'}
                           </button>
+                          {currentUser?.role === "admin" && (
+                            <button
+                              onClick={() =>
+                                sendPasswordForUser(
+                                  (user._id || user.id) as string,
+                                  user.email
+                                )
+                              }
+                              className="btn btn-secondary"
+                              style={{ marginLeft: "0.5rem" }}
+                              disabled={
+                                sendingAll ||
+                                sendingPasswordUserId === (user._id || user.id)
+                              }
+                            >
+                              {sendingPasswordUserId === (user._id || user.id)
+                                ? "Sending..."
+                                : "Send Password"}
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))

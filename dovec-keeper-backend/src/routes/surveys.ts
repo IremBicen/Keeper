@@ -1,5 +1,6 @@
 import { Router } from "express";
 import Survey from "../models/Survey";
+import ResponseModel from "../models/Response";
 import { protect, authorize } from "../middleware/auth";
 import { buildSurveyQuery, canUserAccessSurvey } from "../utils/surveyAccess";
 
@@ -9,8 +10,23 @@ const router = Router();
 router.get("/", protect, async (req: any, res) => {
   try {
     const query = buildSurveyQuery(req.user);
-    const surveys = await Survey.find(query).populate("createdBy", "name email");
-    res.json(surveys);
+    // Use lean() so we can safely spread and add computed properties like "responses"
+    const surveys = await Survey.find(query)
+      .populate("createdBy", "name email")
+      .lean();
+
+    // Attach submitted response count for each survey
+    const surveysWithCounts = await Promise.all(
+      surveys.map(async (survey: any) => {
+        const count = await ResponseModel.countDocuments({
+          survey: survey._id,
+          status: "submitted",
+        });
+        return { ...survey, responses: count };
+      })
+    );
+
+    res.json(surveysWithCounts);
   } catch (error: any) {
     res.status(500).json({ message: error.message || "Failed to fetch surveys" });
   }

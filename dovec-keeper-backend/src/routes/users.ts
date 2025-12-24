@@ -1,6 +1,7 @@
 import { Router } from "express";
 import User from "../models/User";
 import { protect, authorize } from "../middleware/auth";
+import { sendWelcomePasswordEmail } from "../utils/mailer";
 
 const router = Router();
 
@@ -90,5 +91,41 @@ router.put("/:id", protect, authorize("admin"), async (req: any, res) => {
     res.status(400).json({ message: error.message || "Failed to update user" });
   }
 });
+
+// POST /api/users/:id/send-password - Generate and email a new password (admin only)
+router.post(
+  "/:id/send-password",
+  protect,
+  authorize("admin"),
+  async (req: any, res) => {
+    try {
+      const user = await User.findById(req.params.id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Generate a temporary password and update the user
+      const tempPassword = Math.random().toString(36).slice(-10);
+      (user as any).password = tempPassword;
+      await user.save();
+
+      try {
+        await sendWelcomePasswordEmail(user.email, user.name, tempPassword);
+      } catch (mailError: any) {
+        console.error("Error sending password email:", mailError);
+        return res.status(500).json({
+          message:
+            "Password was reset but email could not be sent. Check mail server configuration.",
+        });
+      }
+
+      res.json({ message: "Password reset and email sent successfully." });
+    } catch (error: any) {
+      res.status(500).json({
+        message: error.message || "Failed to send password email",
+      });
+    }
+  }
+);
 
 export default router;

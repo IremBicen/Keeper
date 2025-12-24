@@ -45,77 +45,65 @@ export default function SurveysPage() {
     }
   };
 
+  // Fetch user's submitted responses to determine which self-surveys are already completed
+  const fetchUserSubmittedResponses = async () => {
+    if (!token || !user) return;
+    try {
+      const res = await api.get<any[]>("/responses", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const userId =
+        (user as any)?.id?.toString() || (user as any)?._id?.toString();
+
+      const submitted = new Set<string>();
+      (res.data || []).forEach((r: any) => {
+        if (!r || r.status !== "submitted") return;
+
+        const surveyId =
+          typeof r.survey === "string"
+            ? r.survey
+            : r.survey?._id?.toString() || r.survey?.id?.toString();
+        if (!surveyId) return;
+
+        const title = (
+          (r.survey && (r.survey as any).title) ||
+          (r.survey && (r.survey as any).surveyName) ||
+          ""
+        )
+          .toString()
+          .toLowerCase();
+
+        const isTeammateSurvey = title.includes("takım arkadaşı");
+        const isManagerSurvey = title.includes("yönetici");
+
+        // For self surveys, completion is based on employee === user
+        if (!isTeammateSurvey && !isManagerSurvey) {
+          if (!r.employee) return;
+          const empId =
+            typeof r.employee === "string"
+              ? r.employee
+              : r.employee._id?.toString() || r.employee.id?.toString();
+          if (empId !== userId) return;
+          submitted.add(surveyId.toString());
+          return;
+        }
+
+        // For teammate and yönetici (manager) surveys, users can have multiple targets
+        // → never hide the button globally on the surveys list page
+      });
+
+      setSubmittedSurveyIds(submitted);
+    } catch (err) {
+      console.error("Error fetching user responses for surveys page:", err);
+    }
+  };
+
   useEffect(() => {
     fetchSurveys();
   }, [token]);
 
-  // Fetch user's submitted responses to determine which self-surveys are already completed
   useEffect(() => {
-    const fetchUserSubmittedResponses = async () => {
-      if (!token || !user) return;
-      try {
-        const res = await api.get<any[]>("/responses", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        const userId =
-          (user as any)?.id?.toString() || (user as any)?._id?.toString();
-
-        const submitted = new Set<string>();
-        (res.data || []).forEach((r: any) => {
-          if (!r || r.status !== "submitted") return;
-          
-          const surveyId =
-            typeof r.survey === "string"
-              ? r.survey
-              : r.survey?._id?.toString() || r.survey?.id?.toString();
-          if (!surveyId) return;
-
-          const title = (
-            (r.survey && (r.survey as any).title) ||
-            (r.survey && (r.survey as any).surveyName) ||
-            ""
-          )
-            .toString()
-            .toLowerCase();
-
-          const isTeammateSurvey = title.includes("takım arkadaşı");
-          const isManagerSurvey = title.includes("yönetici");
-
-          // For self surveys, completion is based on employee === user
-          if (!isTeammateSurvey && !isManagerSurvey) {
-            if (!r.employee) return;
-            const empId =
-              typeof r.employee === "string"
-                ? r.employee
-                : r.employee._id?.toString() || r.employee.id?.toString();
-            if (empId !== userId) return;
-            submitted.add(surveyId.toString());
-            return;
-          }
-
-          // For yönetici surveys, completion is based on evaluator === user
-          if (isManagerSurvey) {
-            if (!r.evaluator) return;
-            const evalId =
-              typeof r.evaluator === "string"
-                ? r.evaluator
-                : (r.evaluator as any)._id?.toString() ||
-                  (r.evaluator as any).id?.toString();
-            if (evalId !== userId) return;
-            submitted.add(surveyId.toString());
-            return;
-          }
-
-          // For teammate surveys, users can have multiple targets → never hide the button globally
-        });
-
-        setSubmittedSurveyIds(submitted);
-      } catch (err) {
-        console.error("Error fetching user responses for surveys page:", err);
-      }
-    };
-
     fetchUserSubmittedResponses();
   }, [token, user]);
 
@@ -211,7 +199,9 @@ export default function SurveysPage() {
       if (status === 'Submitted') {
         setNotification("Survey submitted successfully!");
         setFillingSurvey(null);
+        // Refresh surveys list and user's submitted survey map so UI updates correctly
         fetchSurveys(); // Refresh to update response count
+        fetchUserSubmittedResponses(); // Refresh to hide "Fill Survey" button when appropriate
       } else {
         setNotification("Survey saved as draft!");
         setFillingSurvey(null);

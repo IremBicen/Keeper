@@ -14,7 +14,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const [surveys, setSurveys] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
-  const [responses, setResponses] = useState<any[]>([]);
+  const [submittedSurveyIds, setSubmittedSurveyIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -63,18 +63,58 @@ export default function DashboardPage() {
         // Fetch user's responses to check submission status
         try {
           const responsesRes = await api.get("/responses");
-          const userResponses = (responsesRes.data || []).filter((r: any) => {
-            if (!r.employee) return false;
-            const empId = typeof r.employee === 'string' 
-              ? r.employee 
-              : (r.employee._id?.toString() || r.employee.id?.toString() || r.employee);
-            const userId = (user as any)?.id?.toString() || (user as any)?._id?.toString();
-            return empId === userId && r.status === 'submitted';
+          const userId =
+            (user as any)?.id?.toString() || (user as any)?._id?.toString();
+
+          const submitted = new Set<string>();
+          (responsesRes.data || []).forEach((r: any) => {
+            if (!r || r.status !== "submitted") return;
+
+            const surveyId =
+              typeof r.survey === "string"
+                ? r.survey
+                : r.survey?._id?.toString() || r.survey?.id?.toString();
+            if (!surveyId) return;
+
+            const title = (
+              (r.survey && (r.survey as any).title) ||
+              (r.survey && (r.survey as any).surveyName) ||
+              ""
+            )
+              .toString()
+              .toLowerCase();
+
+            const isTeammateSurvey = title.includes("takım arkadaşı");
+            const isManagerSurvey = title.includes("yönetici");
+
+            const empId =
+              typeof r.employee === "string"
+                ? r.employee
+                : r.employee?._id?.toString() || r.employee?.id?.toString();
+            const evalId =
+              typeof r.evaluator === "string"
+                ? r.evaluator
+                : r.evaluator?._id?.toString() || r.evaluator?.id?.toString();
+
+            // Self-surveys: submitted when current user is the employee
+            if (!isTeammateSurvey && !isManagerSurvey) {
+              if (empId !== userId) return;
+              submitted.add(surveyId.toString());
+              return;
+            }
+
+            // Teammate & manager surveys: submitted when current user is the evaluator
+            if (isTeammateSurvey || isManagerSurvey) {
+              if (evalId !== userId) return;
+              submitted.add(surveyId.toString());
+              return;
+            }
           });
-          setResponses(userResponses);
+
+          setSubmittedSurveyIds(submitted);
         } catch (err) {
           console.error("Error fetching responses:", err);
-          setResponses([]);
+          setSubmittedSurveyIds(new Set());
         }
 
         if (user?.role === "admin") {
@@ -177,13 +217,10 @@ export default function DashboardPage() {
               </thead>
               <tbody>
                 {surveys.slice(0, 5).map((survey: any) => {
-                  const surveyId = survey._id || survey.id;
-                  const isFilled = responses.some((r: any) => {
-                    const respSurveyId = typeof r.survey === 'string' 
-                      ? r.survey 
-                      : (r.survey?._id?.toString() || r.survey?.id?.toString());
-                    return respSurveyId === surveyId;
-                  });
+                  const surveyId =
+                    (survey._id || survey.id)?.toString();
+                  const isFilled =
+                    surveyId && submittedSurveyIds.has(surveyId);
                   
                   return (
                     <tr key={surveyId}>
