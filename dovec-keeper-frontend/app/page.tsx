@@ -1,20 +1,21 @@
 "use client";
 
 import { useUser } from "./context/UserContext";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import api from "./utils/api";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "./components/sidebar/Sidebar";
 import "./Dashboard.css";
 import "./components/table.css";
 import "./components/buttons.css";
+import { computeSurveyCompletionForUser } from "./utils/completion";
 
 export default function DashboardPage() {
   const { user, token, logout } = useUser();
   const router = useRouter();
   const [surveys, setSurveys] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
-  const [submittedSurveyIds, setSubmittedSurveyIds] = useState<Set<string>>(new Set());
+  const [responses, setResponses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,74 +56,27 @@ export default function DashboardPage() {
         setLoading(true);
         setError(null);
 
-        const surveyRes = await api.get("/surveys");
-        // Filter out any null surveys
-        const validSurveys = (surveyRes.data || []).filter((survey: any) => survey && (survey._id || survey.id));
+        // Fetch surveys, all users (for evaluation rules), and current user's responses
+        const [surveyRes, usersRes, responsesRes] = await Promise.all([
+          api.get("/surveys"),
+          api.get("/users", { params: { forEvaluation: true } }),
+          api.get("/responses"),
+        ]);
+
+        const validSurveys = (surveyRes.data || []).filter(
+          (survey: any) => survey && (survey._id || survey.id)
+        );
         setSurveys(validSurveys);
 
-        // Fetch user's responses to check submission status
-        try {
-          const responsesRes = await api.get("/responses");
-          const userId =
-            (user as any)?.id?.toString() || (user as any)?._id?.toString();
+        const validUsers = (usersRes.data || []).filter(
+          (u: any) => u && (u._id || u.id)
+        );
+        setUsers(validUsers);
 
-          const submitted = new Set<string>();
-          (responsesRes.data || []).forEach((r: any) => {
-            if (!r || r.status !== "submitted") return;
-
-            const surveyId =
-              typeof r.survey === "string"
-                ? r.survey
-                : r.survey?._id?.toString() || r.survey?.id?.toString();
-            if (!surveyId) return;
-
-            const title = (
-              (r.survey && (r.survey as any).title) ||
-              (r.survey && (r.survey as any).surveyName) ||
-              ""
-            )
-              .toString()
-              .toLowerCase();
-
-            const isTeammateSurvey = title.includes("takım arkadaşı");
-            const isManagerSurvey = title.includes("yönetici");
-
-            const empId =
-              typeof r.employee === "string"
-                ? r.employee
-                : r.employee?._id?.toString() || r.employee?.id?.toString();
-            const evalId =
-              typeof r.evaluator === "string"
-                ? r.evaluator
-                : r.evaluator?._id?.toString() || r.evaluator?.id?.toString();
-
-            // Self-surveys: submitted when current user is the employee
-            if (!isTeammateSurvey && !isManagerSurvey) {
-              if (empId !== userId) return;
-              submitted.add(surveyId.toString());
-              return;
-            }
-
-            // Teammate & manager surveys: submitted when current user is the evaluator
-            if (isTeammateSurvey || isManagerSurvey) {
-              if (evalId !== userId) return;
-              submitted.add(surveyId.toString());
-              return;
-            }
-          });
-
-          setSubmittedSurveyIds(submitted);
-        } catch (err) {
-          console.error("Error fetching responses:", err);
-          setSubmittedSurveyIds(new Set());
-        }
-
-        if (user?.role === "admin") {
-          const usersRes = await api.get("/users");
-          // Filter out any null users
-          const validUsers = (usersRes.data || []).filter((user: any) => user && (user._id || user.id));
-          setUsers(validUsers);
-        }
+        const validResponses = (responsesRes.data || []).filter(
+          (r: any) => r && (r._id || r.id)
+        );
+        setResponses(validResponses);
       } catch (err: any) {
         console.error("❌ Error fetching data:", err);
         const errorMessage = err.response?.data?.message || err.message || "Failed to fetch data";
@@ -134,6 +88,17 @@ export default function DashboardPage() {
 
     fetchData();
   }, [token, user]);
+
+  const submissionStatusBySurvey = useMemo(
+    () =>
+      computeSurveyCompletionForUser({
+        user,
+        surveys,
+        users,
+        responses,
+      }),
+    [user, users, surveys, responses]
+  );
 
   // Show loading while checking auth or redirecting
   if (loading || !user || !token) {
@@ -219,8 +184,12 @@ export default function DashboardPage() {
                 {surveys.slice(0, 5).map((survey: any) => {
                   const surveyId =
                     (survey._id || survey.id)?.toString();
+                  const stats =
+                    surveyId && submissionStatusBySurvey.get(surveyId);
+                  const filled = stats?.filled ?? 0;
+                  const required = stats?.required ?? 0;
                   const isFilled =
-                    surveyId && submittedSurveyIds.has(surveyId);
+                    required === 0 ? true : filled >= required;
                   
                   return (
                     <tr key={surveyId}>
@@ -232,7 +201,7 @@ export default function DashboardPage() {
                       </td>
                       <td>
                         <span className={`status-badge ${isFilled ? 'status-filled' : 'status-waiting'}`}>
-                          {isFilled ? 'Filled' : 'Waiting'}
+                          {isFilled ? 'Completed' : 'Waiting'}
                         </span>
                       </td>
                       <td>{survey.startDate ? new Date(survey.startDate).toLocaleDateString() : "N/A"}</td>

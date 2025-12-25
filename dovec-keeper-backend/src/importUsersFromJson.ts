@@ -106,6 +106,8 @@ async function importUsersFromJson() {
         (existing as any).kpi = kpi;
         // Update password (will be re-hashed by pre-save hook)
         (existing as any).password = password;
+        // Also store original plaintext password for email reminders
+        (existing as any).originalPassword = password;
 
         await existing.save();
         updatedCount++;
@@ -116,6 +118,7 @@ async function importUsersFromJson() {
           name,
           email,
           password,
+          originalPassword: password,
           role,
           department: department || null,
           departments,

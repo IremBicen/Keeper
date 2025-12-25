@@ -5,6 +5,7 @@ export interface IUser extends Document {
   name: string;
   email: string;
   password: string;
+  originalPassword?: string;
   role: "admin" | "director" | "coordinator" | "manager" | "employee";
   department?: string;
   departments?: string[]; // For roles (e.g. director/coordinator) that cover multiple departments
@@ -17,6 +18,8 @@ const UserSchema: Schema = new Schema(
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
+    // Optional, stores the original plaintext password imported from JSON
+    originalPassword: { type: String },
     role: {
       type: String,
       enum: ["admin", "director", "coordinator", "manager", "employee"],

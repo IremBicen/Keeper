@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import api from "../utils/api";
 import { useUser } from "../context/UserContext";
 import { Survey } from "../types/survey";
@@ -15,6 +15,7 @@ import SurveyForm from "../form/surveyForm";
 import { Sidebar } from "../components/sidebar/Sidebar";
 import "../components/table.css";
 import "../components/buttons.css";
+import { computeSurveyCompletionForUser } from "../utils/completion";
 
 export default function SurveysPage() {
   const { token, user } = useUser();
@@ -27,16 +28,38 @@ export default function SurveysPage() {
   const [previewingSurvey, setPreviewingSurvey] = useState<Survey | null>(null);
   const [fillingSurvey, setFillingSurvey] = useState<Survey | null>(null);
   const [submittedSurveyIds, setSubmittedSurveyIds] = useState<Set<string>>(new Set());
+  const [allUsers, setAllUsers] = useState<any[]>([]);
+  const [responses, setResponses] = useState<any[]>([]);
 
   // Fetch surveys from backend
   const fetchSurveys = async () => {
     if (!token) return;
     try {
       setLoading(true);
-      const res = await api.get<Survey[]>("/surveys", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setSurveys(res.data);
+      const [surveysRes, usersRes, responsesRes] = await Promise.all([
+        api.get<Survey[]>("/surveys", {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        api.get("/users", {
+          params: { forEvaluation: true },
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        api.get("/responses", {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
+
+      setSurveys(surveysRes.data || []);
+
+      const validUsers = (usersRes.data || []).filter(
+        (u: any) => u && (u._id || u.id)
+      );
+      setAllUsers(validUsers);
+
+      const validResponses = (responsesRes.data || []).filter(
+        (r: any) => r && (r._id || r.id)
+      );
+      setResponses(validResponses);
     } catch (err) {
       console.error("Error fetching surveys:", err);
       setNotification("Failed to load surveys.");
@@ -45,67 +68,31 @@ export default function SurveysPage() {
     }
   };
 
-  // Fetch user's submitted responses to determine which self-surveys are already completed
-  const fetchUserSubmittedResponses = async () => {
-    if (!token || !user) return;
-    try {
-      const res = await api.get<any[]>("/responses", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      const userId =
-        (user as any)?.id?.toString() || (user as any)?._id?.toString();
-
-      const submitted = new Set<string>();
-      (res.data || []).forEach((r: any) => {
-        if (!r || r.status !== "submitted") return;
-
-        const surveyId =
-          typeof r.survey === "string"
-            ? r.survey
-            : r.survey?._id?.toString() || r.survey?.id?.toString();
-        if (!surveyId) return;
-
-        const title = (
-          (r.survey && (r.survey as any).title) ||
-          (r.survey && (r.survey as any).surveyName) ||
-          ""
-        )
-          .toString()
-          .toLowerCase();
-
-        const isTeammateSurvey = title.includes("takım arkadaşı");
-        const isManagerSurvey = title.includes("yönetici");
-
-        // For self surveys, completion is based on employee === user
-        if (!isTeammateSurvey && !isManagerSurvey) {
-          if (!r.employee) return;
-          const empId =
-            typeof r.employee === "string"
-              ? r.employee
-              : r.employee._id?.toString() || r.employee.id?.toString();
-          if (empId !== userId) return;
-          submitted.add(surveyId.toString());
-          return;
-        }
-
-        // For teammate and yönetici (manager) surveys, users can have multiple targets
-        // → never hide the button globally on the surveys list page
-      });
-
-      setSubmittedSurveyIds(submitted);
-    } catch (err) {
-      console.error("Error fetching user responses for surveys page:", err);
-    }
-  };
-
   useEffect(() => {
     fetchSurveys();
   }, [token]);
 
+  const completionStatus = useMemo(
+    () =>
+      computeSurveyCompletionForUser({
+        user,
+        surveys,
+        users: allUsers,
+        responses,
+      }),
+    [user, surveys, allUsers, responses]
+  );
+
   useEffect(() => {
-    fetchUserSubmittedResponses();
-  }, [token, user]);
+    const completed = new Set<string>();
+    completionStatus.forEach((value, key) => {
+      const { filled, required } = value;
+      if (required === 0 || filled >= required) {
+        completed.add(key);
+      }
+    });
+    setSubmittedSurveyIds(completed);
+  }, [completionStatus]);
 
   const handleEditClick = (survey: Survey) => {
     setEditingSurvey(survey);
@@ -199,9 +186,8 @@ export default function SurveysPage() {
       if (status === 'Submitted') {
         setNotification("Survey submitted successfully!");
         setFillingSurvey(null);
-        // Refresh surveys list and user's submitted survey map so UI updates correctly
-        fetchSurveys(); // Refresh to update response count
-        fetchUserSubmittedResponses(); // Refresh to hide "Fill Survey" button when appropriate
+        // Refresh surveys list and user's completion map so UI updates correctly
+        fetchSurveys(); // Refresh to update response count and completion status
       } else {
         setNotification("Survey saved as draft!");
         setFillingSurvey(null);

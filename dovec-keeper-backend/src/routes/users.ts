@@ -92,34 +92,40 @@ router.put("/:id", protect, authorize("admin"), async (req: any, res) => {
   }
 });
 
-// POST /api/users/:id/send-password - Generate and email a new password (admin only)
+// POST /api/users/:id/send-password - Email original password from Mongo (admin only)
 router.post(
   "/:id/send-password",
   protect,
   authorize("admin"),
   async (req: any, res) => {
     try {
-      const user = await User.findById(req.params.id);
+      const user = await User.findById(req.params.id).select(
+        "email name originalPassword"
+      );
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
 
-      // Generate a temporary password and update the user
-      const tempPassword = Math.random().toString(36).slice(-10);
-      (user as any).password = tempPassword;
-      await user.save();
+      // Use original plaintext password stored in Mongo (set by importUsersFromJson)
+      const plainPassword = (user as any).originalPassword;
+      if (!plainPassword || typeof plainPassword !== "string") {
+        return res.status(500).json({
+          message:
+            "Original password not available for this user. Please re-import users with passwords or manually reset.",
+        });
+      }
 
       try {
-        await sendWelcomePasswordEmail(user.email, user.name, tempPassword);
+        await sendWelcomePasswordEmail(user.email, user.name, plainPassword);
       } catch (mailError: any) {
         console.error("Error sending password email:", mailError);
         return res.status(500).json({
           message:
-            "Password was reset but email could not be sent. Check mail server configuration.",
+            "Email could not be sent. Check mail server configuration.",
         });
       }
 
-      res.json({ message: "Password reset and email sent successfully." });
+      res.json({ message: "Password email sent successfully." });
     } catch (error: any) {
       res.status(500).json({
         message: error.message || "Failed to send password email",

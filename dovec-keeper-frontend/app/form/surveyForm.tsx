@@ -48,6 +48,8 @@ export default function SurveyForm({ survey, onClose, onSubmit }: SurveyFormProp
     const [selectedManagerId, setSelectedManagerId] = useState<string>('');
     const [loadingTeammates, setLoadingTeammates] = useState(false);
     const [loadingManagers, setLoadingManagers] = useState(false);
+    const [completedTeammateIds, setCompletedTeammateIds] = useState<Set<string>>(new Set());
+    const [completedManagerIds, setCompletedManagerIds] = useState<Set<string>>(new Set());
 
     // Shared role ranking logic (higher number = higher level)
     const roleRank: Record<string, number> = {
@@ -182,6 +184,75 @@ export default function SurveyForm({ survey, onClose, onSubmit }: SurveyFormProp
         fetchSubcategories();
     }, [token, categoryList, surveyCategories]);
 
+    // Fetch already-completed targets (teammates/managers) for this survey by current user
+    useEffect(() => {
+        const fetchCompletedTargets = async () => {
+            if (!token || !user || (!isTeammateSurvey && !isManagerSurvey)) return;
+            try {
+                const res = await api.get<any[]>("/responses");
+                const currentUserId =
+                    (user as any)?.id?.toString() || (user as any)?._id?.toString();
+                if (!currentUserId) return;
+
+                const completedTeammates = new Set<string>();
+                const completedManagers = new Set<string>();
+                const surveyId =
+                    (survey._id || (survey as any).id)?.toString();
+
+                (res.data || []).forEach((r: any) => {
+                    if (!r || r.status !== "submitted") return;
+
+                    const surveyObj: any =
+                        typeof r.survey === "string" ? null : (r.survey as any);
+                    const sIdRaw =
+                        typeof r.survey === "string"
+                            ? r.survey
+                            : surveyObj?._id || surveyObj?.id;
+                    const sId = sIdRaw?.toString();
+                    if (!sId || !surveyId || sId !== surveyId) return;
+
+                    const titleLower = (
+                        surveyObj?.title ||
+                        surveyObj?.surveyName ||
+                        ""
+                    )
+                        .toString()
+                        .toLowerCase();
+                    const isManagerForm = titleLower.includes("yönetici");
+                    const isTeammateForm = titleLower.includes("takım arkadaşı");
+
+                    const empIdRaw =
+                        typeof r.employee === "string"
+                            ? r.employee
+                            : r.employee?._id || r.employee?.id;
+                    const evalIdRaw =
+                        typeof r.evaluator === "string"
+                            ? r.evaluator
+                            : r.evaluator?._id || r.evaluator?.id;
+
+                    const evaluatorId = evalIdRaw?.toString();
+                    const targetId = empIdRaw?.toString();
+                    if (!evaluatorId || !targetId || evaluatorId !== currentUserId) return;
+
+                    if (isTeammateForm) {
+                        completedTeammates.add(targetId);
+                    } else if (isManagerForm) {
+                        completedManagers.add(targetId);
+                    }
+                });
+
+                setCompletedTeammateIds(completedTeammates);
+                setCompletedManagerIds(completedManagers);
+            } catch (err) {
+                console.error("Error fetching completed targets for survey form:", err);
+                setCompletedTeammateIds(new Set());
+                setCompletedManagerIds(new Set());
+            }
+        };
+
+        fetchCompletedTargets();
+    }, [token, user, survey._id, survey.id, isTeammateSurvey, isManagerSurvey]);
+
     // Fetch teammates for "takım arkadaşı" surveys
     useEffect(() => {
         const fetchTeammates = async () => {
@@ -208,8 +279,9 @@ export default function SurveyForm({ survey, onClose, onSubmit }: SurveyFormProp
                     const isSameDepartment = userDept === teammateDept && userDept !== '';
                     const isNotSelf = uId !== userId;
                     const isValidRole = u.role === 'employee'; // only employees can be evaluated in teammate surveys
+                    const notAlreadyCompleted = !completedTeammateIds.has(uId || "");
                     
-                    return isSameDepartment && isNotSelf && isValidRole;
+                    return isSameDepartment && isNotSelf && isValidRole && notAlreadyCompleted;
                 });
                 
                 setTeammates(filtered);
@@ -222,7 +294,7 @@ export default function SurveyForm({ survey, onClose, onSubmit }: SurveyFormProp
         };
         
         fetchTeammates();
-    }, [isTeammateSurvey, token, user]);
+    }, [isTeammateSurvey, token, user, completedTeammateIds]);
 
     // Fetch managers for "yönetici" surveys
     useEffect(() => {
@@ -319,7 +391,9 @@ export default function SurveyForm({ survey, onClose, onSubmit }: SurveyFormProp
                         isAllowedByRole = false;
                     }
 
-                    return isSameDepartment && isNotSelf && isAllowedByRole;
+                    const notAlreadyCompleted = !completedManagerIds.has(uId || "");
+
+                    return isSameDepartment && isNotSelf && isAllowedByRole && notAlreadyCompleted;
                 });
                 
                 // Sort by department, then by name
@@ -342,7 +416,7 @@ export default function SurveyForm({ survey, onClose, onSubmit }: SurveyFormProp
         };
         
         fetchManagers();
-    }, [isManagerSurvey, token, user]);
+    }, [isManagerSurvey, token, user, completedManagerIds]);
 
     //--------------Draft Handling--------------------------
     useEffect(() => {
