@@ -20,10 +20,10 @@ const port = SMTP_PORT ? parseInt(SMTP_PORT, 10) : 465;
 const secure =
   typeof SMTP_SECURE === "string"
     ? SMTP_SECURE.toLowerCase().startsWith("true")
-    : false;
+    : true;
 
 const transporter = nodemailer.createTransport({
-  host: SMTP_HOST || "127.0.0.1",
+  host: SMTP_HOST || "mail.dovecgroup.com",   // fallback to real SMTP host
   port,
   secure,
   auth:
