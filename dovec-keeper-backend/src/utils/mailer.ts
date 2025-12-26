@@ -1,4 +1,8 @@
 import nodemailer from "nodemailer";
+import dotenv from "dotenv";
+
+// Ensure .env is loaded even when this module is imported
+dotenv.config();
 
 const {
   SMTP_HOST,
@@ -9,11 +13,18 @@ const {
   FROM_EMAIL,
 } = process.env;
 
+const port = SMTP_PORT ? parseInt(SMTP_PORT, 10) : 587;
+const secure =
+  typeof SMTP_SECURE === "string"
+    ? SMTP_SECURE.toLowerCase().startsWith("true")
+    : false;
+
 const transporter = nodemailer.createTransport({
   host: SMTP_HOST,
-  port: SMTP_PORT ? parseInt(SMTP_PORT, 10) : 587,
-  secure: SMTP_SECURE === "true",
-  auth: SMTP_USER && SMTP_PASS ? { user: SMTP_USER, pass: SMTP_PASS } : undefined,
+  port,
+  secure,
+  auth:
+    SMTP_USER && SMTP_PASS ? { user: SMTP_USER, pass: SMTP_PASS } : undefined,
 });
 
 export async function sendWelcomePasswordEmail(
