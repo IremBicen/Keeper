@@ -16,18 +16,22 @@ const {
   FROM_EMAIL,
 } = process.env;
 
-const port = SMTP_PORT ? parseInt(SMTP_PORT, 10) : 465;
+const port = SMTP_PORT ? parseInt(SMTP_PORT, 10) : 587;
 const secure =
   typeof SMTP_SECURE === "string"
     ? SMTP_SECURE.toLowerCase().startsWith("true")
-    : true;
+    : false;
 
 const transporter = nodemailer.createTransport({
-  host: SMTP_HOST || "mail.dovecgroup.com",   // fallback to real SMTP host
+  host: SMTP_HOST || "mail.dovecgroup.com",
   port,
   secure,
   auth:
     SMTP_USER && SMTP_PASS ? { user: SMTP_USER, pass: SMTP_PASS } : undefined,
+  // optional: enable STARTTLS if server requires it
+  tls: {
+    rejectUnauthorized: false, // only if you still have cert problems
+  },
 });
 
 export async function sendWelcomePasswordEmail(
