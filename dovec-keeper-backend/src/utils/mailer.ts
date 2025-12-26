@@ -16,7 +16,7 @@ const {
   FROM_EMAIL,
 } = process.env;
 
-const port = SMTP_PORT ? parseInt(SMTP_PORT, 10) : 587;
+const port = SMTP_PORT ? parseInt(SMTP_PORT, 10) : 465;
 const secure =
   typeof SMTP_SECURE === "string"
     ? SMTP_SECURE.toLowerCase().startsWith("true")
