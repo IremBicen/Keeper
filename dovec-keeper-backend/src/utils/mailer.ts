@@ -1,8 +1,11 @@
 import nodemailer from "nodemailer";
 import dotenv from "dotenv";
+import path from "path";
 
-// Ensure .env is loaded even when this module is imported
-dotenv.config();
+// Explicitly load backend .env (two levels up from dist/utils in production)
+dotenv.config({
+  path: path.join(__dirname, "..", "..", ".env"),
+});
 
 const {
   SMTP_HOST,
@@ -20,7 +23,7 @@ const secure =
     : false;
 
 const transporter = nodemailer.createTransport({
-  host: SMTP_HOST,
+  host: SMTP_HOST || "127.0.0.1",
   port,
   secure,
   auth:
