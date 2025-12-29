@@ -82,11 +82,34 @@ export async function sendWelcomePasswordEmail(
       `E-posta: ${toEmail}`,
       `Şifre: ${password}`,
       "",
+      "Keeper'a giriş yapmak için: https://keeper.dovecgroup.com/",
+      "",
       "Lütfen bu bilgileri kimseyle paylaşmayın ve güvenli bir yerde saklayın.",
       "",
       "İyi çalışmalar,",
       "Keeper Ekibi",
     ].join("\n"),
+    html: `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        <h2 style="color: #2c3e50;">Merhaba ${name || ""},</h2>
+        <p>Keeper'a hoş geldiniz!</p>
+        <p><strong>Giriş bilgileriniz aşağıdadır:</strong></p>
+        <ul>
+          <li><strong>E-posta:</strong> ${toEmail}</li>
+          <li><strong>Şifre:</strong> ${password}</li>
+        </ul>
+        <p>
+          <a href="https://keeper.dovecgroup.com/" 
+             style="background-color: #3498db; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
+            Keeper'a Giriş Yap
+          </a>
+        </p>
+        <p style="color: #e74c3c; font-size: 0.9em;">
+          <strong>Önemli:</strong> Lütfen bu bilgileri kimseyle paylaşmayın ve güvenli bir yerde saklayın.
+        </p>
+        <p>İyi çalışmalar,<br>Keeper Ekibi</p>
+      </div>
+    `,
   };
 
   try {
