@@ -15,14 +15,43 @@ router.get("/", protect, async (req: any, res) => {
       .populate("createdBy", "name email")
       .lean();
 
-    // Attach submitted response count for each survey
+    // Attach submitted response count for each survey.
+    // - Admin: total submitted responses for that survey (all users)
+    // - Non-admin: only responses submitted by the current user
+    //   * Self/keeper/general → where employee === current user
+    //   * Manager/teammate    → where evaluator === current user
     const surveysWithCounts = await Promise.all(
       surveys.map(async (survey: any) => {
-        const count = await ResponseModel.countDocuments({
+        const baseFilter: any = {
           survey: survey._id,
           status: "submitted",
-        });
-        return { ...survey, responses: count };
+        };
+
+        const title = (survey.title || survey.surveyName || "")
+          .toString()
+          .toLowerCase();
+        const isTeammateForm = title.includes("takım arkadaşı");
+        const isManagerForm = title.includes("yönetici");
+
+        // For admins, show global response count per survey
+        if (req.user.role === "admin") {
+          const adminCount = await ResponseModel.countDocuments(baseFilter);
+          return { ...survey, responses: adminCount };
+        }
+
+        const userId = req.user._id;
+
+        const filter = { ...baseFilter };
+        if (isTeammateForm || isManagerForm) {
+          // For manager/teammate forms, count evaluations filled by this user
+          (filter as any).evaluator = userId;
+        } else {
+          // For self/keeper/general forms, count self-responses
+          (filter as any).employee = userId;
+        }
+
+        const userCount = await ResponseModel.countDocuments(filter);
+        return { ...survey, responses: userCount };
       })
     );
 

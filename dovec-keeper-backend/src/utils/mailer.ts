@@ -7,6 +7,13 @@ dotenv.config({
   path: path.join(__dirname, "..", "..", ".env"),
 });
 
+// TEMPORARY: disable TLS certificate verification globally for this process.
+// This is needed because the SMTP certificate on mail.dovecgroup.com is expired.
+// REMOVE this once the certificate is renewed.
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+
 const {
   SMTP_HOST,
   SMTP_PORT,
