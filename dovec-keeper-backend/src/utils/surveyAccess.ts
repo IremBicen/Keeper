@@ -10,6 +10,12 @@ export function canUserAccessSurvey(survey: ISurvey, user: IUser): boolean {
     return true;
   }
 
+  // Keeper surveys are always visible to all users
+  const title = (survey.title || survey.surveyName || "").toString().toLowerCase();
+  if (title.includes("keeper")) {
+    return true;
+  }
+
   const assignmentType = survey.assignmentType || "all";
 
   switch (assignmentType) {
@@ -85,7 +91,8 @@ export function buildSurveyQuery(user: IUser): any {
   // 2. Surveys assigned to "employees"
   // 3. Surveys assigned specifically to them
   // 4. Surveys assigned to their department
-  return {
+  // 5. Keeper surveys (title contains "keeper") - always visible to all users
+  const query: any = {
     $or: [
       { assignmentType: "all" },
       { assignmentType: "employees" },
@@ -97,7 +104,12 @@ export function buildSurveyQuery(user: IUser): any {
         assignmentType: "specific",
         assignedUsers: user._id,
       },
+      // Keeper surveys are always visible to all users
+      { title: { $regex: /keeper/i } },
+      { surveyName: { $regex: /keeper/i } },
     ],
   };
+  
+  return query;
 }
 

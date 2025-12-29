@@ -1,4 +1,5 @@
 import { Router } from "express";
+import mongoose from "mongoose";
 import Survey from "../models/Survey";
 import ResponseModel from "../models/Response";
 import { protect, authorize } from "../middleware/auth";
@@ -40,14 +41,22 @@ router.get("/", protect, async (req: any, res) => {
         }
 
         const userId = req.user._id;
+        
+        // Ensure userId is an ObjectId
+        const userIdObj = typeof userId === 'string' ? new mongoose.Types.ObjectId(userId) : userId;
+        const surveyIdObj = typeof survey._id === 'string' ? new mongoose.Types.ObjectId(survey._id) : survey._id;
 
-        const filter = { ...baseFilter };
+        const filter: any = {
+          survey: surveyIdObj,
+          status: "submitted",
+        };
+        
         if (isTeammateForm || isManagerForm) {
           // For manager/teammate forms, count evaluations filled by this user
-          (filter as any).evaluator = userId;
+          filter.evaluator = userIdObj;
         } else {
           // For self/keeper/general forms, count self-responses
-          (filter as any).employee = userId;
+          filter.employee = userIdObj;
         }
 
         const userCount = await ResponseModel.countDocuments(filter);

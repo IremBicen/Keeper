@@ -119,9 +119,9 @@ router.post(
         await sendWelcomePasswordEmail(user.email, user.name, plainPassword);
       } catch (mailError: any) {
         console.error("Error sending password email:", mailError);
+        // Return the actual error message for better debugging
         return res.status(500).json({
-          message:
-            "Email could not be sent. Check mail server configuration.",
+          message: mailError.message || "Email could not be sent. Check mail server configuration.",
         });
       }
 

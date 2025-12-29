@@ -7,13 +7,6 @@ dotenv.config({
   path: path.join(__dirname, "..", "..", ".env"),
 });
 
-// TEMPORARY: disable TLS certificate verification globally for this process.
-// This is needed because the SMTP certificate on mail.dovecgroup.com is expired.
-// REMOVE this once the certificate is renewed.
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-
 const {
   SMTP_HOST,
   SMTP_PORT,
@@ -23,22 +16,28 @@ const {
   FROM_EMAIL,
 } = process.env;
 
-const port = SMTP_PORT ? parseInt(SMTP_PORT, 10) : 587;
+const port = SMTP_PORT ? parseInt(SMTP_PORT, 10) : 465;
 const secure =
   typeof SMTP_SECURE === "string"
     ? SMTP_SECURE.toLowerCase().startsWith("true")
-    : false;
+    : true; // Default to true for port 465
 
+// Create transporter with proper configuration for Microsoft Exchange
 const transporter = nodemailer.createTransport({
   host: SMTP_HOST || "mail.dovecgroup.com",
   port,
-  secure,
+  secure, // true for 465, false for other ports
   auth:
     SMTP_USER && SMTP_PASS ? { user: SMTP_USER, pass: SMTP_PASS } : undefined,
-  // optional: enable STARTTLS if server requires it
+  // For Microsoft Exchange/Office 365, verify certificate properly
   tls: {
-    rejectUnauthorized: false, // only if you still have cert problems
+    // Verify certificate (default behavior - certificate should be valid now)
+    rejectUnauthorized: true,
   },
+  // Connection timeout
+  connectionTimeout: 10000, // 10 seconds
+  greetingTimeout: 10000,
+  socketTimeout: 10000,
 });
 
 export async function sendWelcomePasswordEmail(
@@ -47,7 +46,18 @@ export async function sendWelcomePasswordEmail(
   password: string
 ) {
   if (!toEmail || !password) {
-    return;
+    throw new Error("Email address and password are required");
+  }
+
+  // Verify SMTP connection before sending
+  try {
+    await transporter.verify();
+    console.log("SMTP server is ready to send emails");
+  } catch (verifyError: any) {
+    console.error("SMTP verification failed:", verifyError);
+    throw new Error(
+      `SMTP connection failed: ${verifyError.message || "Unknown error"}. Please check SMTP configuration.`
+    );
   }
 
   const fromAddress = FROM_EMAIL || SMTP_USER || "no-reply@keeper.local";
@@ -72,7 +82,16 @@ export async function sendWelcomePasswordEmail(
     ].join("\n"),
   };
 
-  await transporter.sendMail(mailOptions);
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log("Email sent successfully:", info.messageId);
+    return info;
+  } catch (sendError: any) {
+    console.error("Error sending email:", sendError);
+    throw new Error(
+      `Failed to send email: ${sendError.message || "Unknown error"}. Check SMTP credentials and server configuration.`
+    );
+  }
 }
 
 
