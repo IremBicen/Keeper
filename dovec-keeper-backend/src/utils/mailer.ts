@@ -16,20 +16,25 @@ const {
   FROM_EMAIL,
 } = process.env;
 
-const port = SMTP_PORT ? parseInt(SMTP_PORT, 10) : 465;
+const port = SMTP_PORT ? parseInt(SMTP_PORT, 10) : 587;
+// For Microsoft Exchange/Office 365:
+// - Port 587 uses STARTTLS (secure: false, requireTLS: true) - RECOMMENDED
+// - Port 465 uses direct SSL (secure: true) - but may not work with all Exchange servers
 const secure =
   typeof SMTP_SECURE === "string"
     ? SMTP_SECURE.toLowerCase().startsWith("true")
-    : true; // Default to true for port 465
+    : port === 465; // Auto-detect: true for 465, false for 587
+
+console.log(`SMTP Configuration: host=${SMTP_HOST || "mail.dovecgroup.com"}, port=${port}, secure=${secure}`);
 
 // Create transporter with proper configuration for Microsoft Exchange
 const transporter = nodemailer.createTransport({
   host: SMTP_HOST || "mail.dovecgroup.com",
   port,
-  secure, // true for 465, false for other ports
+  secure, // true for 465 (SSL), false for 587 (STARTTLS)
   auth:
     SMTP_USER && SMTP_PASS ? { user: SMTP_USER, pass: SMTP_PASS } : undefined,
-  // For Microsoft Exchange/Office 365, verify certificate properly
+  // For Microsoft Exchange/Office 365
   tls: {
     // Verify certificate (default behavior - certificate should be valid now)
     rejectUnauthorized: true,
@@ -38,6 +43,8 @@ const transporter = nodemailer.createTransport({
   connectionTimeout: 10000, // 10 seconds
   greetingTimeout: 10000,
   socketTimeout: 10000,
+  // For port 587 with STARTTLS, require TLS upgrade
+  requireTLS: !secure && port === 587, // Require TLS for STARTTLS connections (port 587)
 });
 
 export async function sendWelcomePasswordEmail(
