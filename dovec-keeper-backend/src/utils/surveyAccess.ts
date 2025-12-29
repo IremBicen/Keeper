@@ -11,7 +11,7 @@ export function canUserAccessSurvey(survey: ISurvey, user: IUser): boolean {
   }
 
   // Keeper surveys are always visible to all users
-  const title = (survey.title || survey.surveyName || "").toString().toLowerCase();
+  const title = (survey.title || "").toString().toLowerCase();
   if (title.includes("keeper")) {
     return true;
   }
@@ -106,7 +106,6 @@ export function buildSurveyQuery(user: IUser): any {
       },
       // Keeper surveys are always visible to all users
       { title: { $regex: /keeper/i } },
-      { surveyName: { $regex: /keeper/i } },
     ],
   };
   
