@@ -32,7 +32,6 @@ function ResultsPageContent() {
     const [departmentFilter, setDepartmentFilter] = useState<string>('');
     const [surveyFilter, setSurveyFilter] = useState<string>('');
     const [selectedName, setSelectedName] = useState<string>('');
-    const [exportingDetailed, setExportingDetailed] = useState(false);
 
     // Fetch results from backend
     useEffect(() => {
@@ -209,59 +208,14 @@ function ResultsPageContent() {
             return true;
         });
 
-    // Export summary scores to a formatted Excel file using a plain JS function (XLSX library)
-    const handleExport = () => {
-        // 1. Prepare the data in an array of objects format (use currently filtered results)
-        const validData = filteredResults;
-        if (validData.length === 0) {
-            alert("No data to export");
-            return;
-        }
-        const dataForSheet = validData.map(item => ({
-            "Employee Name": item.employeeName,
-            "Department": item.department,
-            "Survey Name": item.surveyTitle || "Unknown Survey",
-            "Date": item.date,
-            "Performance Score": item.performanceScore.toFixed(1),
-            "Contribution Score": item.contributionScore.toFixed(1),
-            "Potential Score": item.potentialScore.toFixed(1),
-            "Keeper Score": item.keeperScore.toFixed(1),
-            "KPI Score": item.kpiScore,
-            "Potential": item.potential,
-            "Culture Harmony": item.cultureHarmony,
-            "Team Effect": item.teamEffect,
-            "Executive Observation": item.executiveObservation,
-            "Manager Form Average": item.managerFormAverage ?? 0,
-            "Teammate Form Average": item.teammateFormAverage ?? 0,
-        }));
-
-        // 2. Create a new workbook and a worksheet
-        const ws = XLSX.utils.json_to_sheet(dataForSheet);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Results");
-
-        // 3. Define column widths (simplified)
-        // Get the number of columns from the first data row + headers
-        const numberOfColumns = Object.keys(dataForSheet[0]).length;
-        // Create an array of width objects, all set to 20
-        const columnWidths = Array(numberOfColumns).fill({ wch: 20 });
-        
-        ws["!cols"] = columnWidths;
-
-        // 4. Trigger the download
-        XLSX.writeFile(wb, "results.xlsx");
-    };
-
     // Export detailed results: one row per response, one column per question
-    const handleExportDetailed = async () => {
+    const handleExport = async () => {
         if (!token) {
             alert("You must be logged in to export results.");
             return;
         }
 
         try {
-            setExportingDetailed(true);
-
             // 1. Fetch all responses (admins will receive all; others only their own)
             const [responsesRes, categoriesRes] = await Promise.all([
                 api.get("/responses", {
@@ -421,8 +375,6 @@ function ResultsPageContent() {
             alert(
                 "Failed to export detailed results. Please try again or contact support."
             );
-        } finally {
-            setExportingDetailed(false);
         }
     };
 
@@ -434,25 +386,13 @@ function ResultsPageContent() {
             <main className="dashboard-main">
                 <header className="dashboard-header results-header">
                     <h1 className="dashboard-title">Results</h1>
-                    <div style={{ display: "flex", gap: "0.5rem" }}>
-                        <button
-                            className="btn btn-light btn-with-icon"
-                            onClick={handleExport}
-                        >
-                            <HiArrowUpOnSquare width={16} height={16} />
-                            Export Summary
-                        </button>
-                        <button
-                            className="btn btn-light btn-with-icon"
-                            onClick={handleExportDetailed}
-                            disabled={exportingDetailed}
-                        >
-                            <HiArrowUpOnSquare width={16} height={16} />
-                            {exportingDetailed
-                                ? "Exporting Results..."
-                                : "Export Results"}
-                        </button>
-                    </div>
+                    <button
+                        className="btn btn-light btn-with-icon"
+                        onClick={handleExport}
+                    >
+                        <HiArrowUpOnSquare width={16} height={16} />
+                        Export
+                    </button>
                 </header>
                 <div className="box-container">
                     {/* Filters */}
