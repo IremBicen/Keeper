@@ -6,6 +6,8 @@ import * as XLSX from 'xlsx'; // This is the library for exporting the results d
 import api from "../utils/api";
 import { useUser } from "../context/UserContext";
 import { EmployeeResult } from "../types/employee";
+import { Category } from "../types/category";
+import { Subcategory } from "../types/subcategory";
 import { Sidebar } from "../components/sidebar/Sidebar";
 import "./results.css";
 import "../components/table.css";
@@ -30,6 +32,7 @@ function ResultsPageContent() {
     const [departmentFilter, setDepartmentFilter] = useState<string>('');
     const [surveyFilter, setSurveyFilter] = useState<string>('');
     const [selectedName, setSelectedName] = useState<string>('');
+    const [exportingDetailed, setExportingDetailed] = useState(false);
 
     // Fetch results from backend
     useEffect(() => {
@@ -206,7 +209,7 @@ function ResultsPageContent() {
             return true;
         });
 
-    // Export to a formatted Excel file using a plain JS function (XLSX library)
+    // Export summary scores to a formatted Excel file using a plain JS function (XLSX library)
     const handleExport = () => {
         // 1. Prepare the data in an array of objects format (use currently filtered results)
         const validData = filteredResults;
@@ -249,6 +252,180 @@ function ResultsPageContent() {
         XLSX.writeFile(wb, "results.xlsx");
     };
 
+    // Export detailed results: one row per response, one column per question
+    const handleExportDetailed = async () => {
+        if (!token) {
+            alert("You must be logged in to export results.");
+            return;
+        }
+
+        try {
+            setExportingDetailed(true);
+
+            // 1. Fetch all responses (admins will receive all; others only their own)
+            const [responsesRes, categoriesRes] = await Promise.all([
+                api.get("/responses", {
+                    headers: { Authorization: `Bearer ${token}` },
+                }),
+                api.get<Category[]>("/categories", {
+                    headers: { Authorization: `Bearer ${token}` },
+                }),
+            ]);
+
+            const allResponses: any[] = Array.isArray(responsesRes.data)
+                ? responsesRes.data
+                : [];
+
+            if (allResponses.length === 0) {
+                alert("No responses found to export.");
+                return;
+            }
+
+            const categories = categoriesRes.data || [];
+
+            // 2. Fetch subcategories for each category to build question labels
+            const allSubcategories: Subcategory[] = [];
+            for (const category of categories) {
+                try {
+                    const subsRes = await api.get<Subcategory[]>(
+                        `/subcategories/category/${category._id}`,
+                        {
+                            headers: { Authorization: `Bearer ${token}` },
+                        }
+                    );
+                    const subsWithCategory = (subsRes.data || []).map((sub) => ({
+                        ...sub,
+                        categoryName:
+                            (sub.category as any)?.name || category.name,
+                    }));
+                    allSubcategories.push(...subsWithCategory);
+                } catch (err) {
+                    console.error(
+                        `Error fetching subcategories for category ${category._id}:`,
+                        err
+                    );
+                }
+            }
+
+            // 3. Build a map of questionId -> label
+            const questionLabelMap = new Map<string, string>();
+
+            // From subcategories (manager / teammate / keeper questions)
+            allSubcategories.forEach((sub) => {
+                const id = sub._id || sub.id;
+                if (!id) return;
+                const categoryName =
+                    (sub.categoryName ||
+                        (typeof sub.category === "object"
+                            ? (sub.category as any).name
+                            : "")) || "";
+                const label = `${categoryName} - ${sub.name}`;
+                const key = String(id);
+                if (!questionLabelMap.has(key)) {
+                    questionLabelMap.set(key, label);
+                }
+            });
+
+            // Also from survey.questions where available (e.g. keeper surveys)
+            allResponses.forEach((resp) => {
+                const survey = resp.survey || {};
+                const surveyTitle =
+                    survey.title || survey.surveyName || "Survey";
+                const questions: any[] = Array.isArray(survey.questions)
+                    ? survey.questions
+                    : [];
+
+                questions.forEach((q: any) => {
+                    const id = q.id || q._id;
+                    if (!id) return;
+                    const text = q.text || q.name || "Question";
+                    const label = `${surveyTitle} - ${text}`;
+                    const key = String(id);
+                    if (!questionLabelMap.has(key)) {
+                        questionLabelMap.set(key, label);
+                    }
+                });
+            });
+
+            // Stable list of [questionId, label] for column ordering
+            const questionEntries = Array.from(questionLabelMap.entries());
+
+            // 4. Build rows: one row per submitted response
+            const rows = allResponses
+                .filter((resp) => resp && resp.status === "submitted")
+                .map((resp) => {
+                    const employee = resp.employee || {};
+                    const evaluator = resp.evaluator || {};
+                    const survey = resp.survey || {};
+
+                    const base: any = {
+                        "Employee Name": employee.name || "",
+                        "Employee Email": employee.email || "",
+                        "Employee Department": employee.department || "",
+                        "Employee Role": employee.role || "",
+                        "Survey Title":
+                            survey.title || survey.surveyName || "",
+                        "Survey Status": survey.status || "",
+                        "Evaluator Name": evaluator.name || "",
+                        "Evaluator Email": evaluator.email || "",
+                        "Evaluator Department": evaluator.department || "",
+                        "Evaluator Role": evaluator.role || "",
+                        "Submitted At": resp.submittedAt
+                            ? new Date(resp.submittedAt).toLocaleDateString()
+                            : "",
+                    };
+
+                    const answerMap = new Map<string, any>();
+                    const answers: any[] = Array.isArray(resp.answers)
+                        ? resp.answers
+                        : [];
+                    answers.forEach((a) => {
+                        if (
+                            a &&
+                            a.questionId !== undefined &&
+                            a.questionId !== null
+                        ) {
+                            const key = String(a.questionId);
+                            answerMap.set(key, a.value);
+                        }
+                    });
+
+                    // Fill each question column
+                    questionEntries.forEach(([questionId, label]) => {
+                        const value = answerMap.get(questionId);
+                        base[label] =
+                            value === undefined || value === null ? "" : value;
+                    });
+
+                    return base;
+                });
+
+            if (rows.length === 0) {
+                alert("No submitted responses to export.");
+                return;
+            }
+
+            // 5. Create workbook and worksheet
+            const ws = XLSX.utils.json_to_sheet(rows);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Detailed Results");
+
+            // Optional: set column widths
+            const numberOfColumns = Object.keys(rows[0]).length;
+            const columnWidths = Array(numberOfColumns).fill({ wch: 25 });
+            (ws as any)["!cols"] = columnWidths;
+
+            XLSX.writeFile(wb, "detailed_results.xlsx");
+        } catch (err) {
+            console.error("Error exporting detailed results:", err);
+            alert(
+                "Failed to export detailed results. Please try again or contact support."
+            );
+        } finally {
+            setExportingDetailed(false);
+        }
+    };
+
     // ---------------------------------------------
 
     return (
@@ -257,10 +434,25 @@ function ResultsPageContent() {
             <main className="dashboard-main">
                 <header className="dashboard-header results-header">
                     <h1 className="dashboard-title">Results</h1>
-                    <button className="btn btn-light btn-with-icon" onClick={handleExport}>
-                        <HiArrowUpOnSquare width={16} height={16} />
-                        Export
-                    </button>
+                    <div style={{ display: "flex", gap: "0.5rem" }}>
+                        <button
+                            className="btn btn-light btn-with-icon"
+                            onClick={handleExport}
+                        >
+                            <HiArrowUpOnSquare width={16} height={16} />
+                            Export Summary
+                        </button>
+                        <button
+                            className="btn btn-light btn-with-icon"
+                            onClick={handleExportDetailed}
+                            disabled={exportingDetailed}
+                        >
+                            <HiArrowUpOnSquare width={16} height={16} />
+                            {exportingDetailed
+                                ? "Exporting Results..."
+                                : "Export Results"}
+                        </button>
+                    </div>
                 </header>
                 <div className="box-container">
                     {/* Filters */}

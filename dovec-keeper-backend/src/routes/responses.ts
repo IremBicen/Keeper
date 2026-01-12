@@ -186,7 +186,10 @@ router.get("/", protect, async (req: any, res) => {
     const list = await ResponseModel.find(query)
       .populate("employee", "name email role department")
       .populate("evaluator", "name email role department")
-      .populate("survey", "title surveyName status")
+      .populate(
+        "survey",
+        "title surveyName status categories questions startDate endDate"
+      )
       .lean();
 
   res.json(list);
