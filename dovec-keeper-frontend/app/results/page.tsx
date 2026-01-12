@@ -228,6 +228,8 @@ function ResultsPageContent() {
             "Culture Harmony": item.cultureHarmony,
             "Team Effect": item.teamEffect,
             "Executive Observation": item.executiveObservation,
+            "Manager Form Average": item.managerFormAverage ?? 0,
+            "Teammate Form Average": item.teammateFormAverage ?? 0,
         }));
 
         // 2. Create a new workbook and a worksheet

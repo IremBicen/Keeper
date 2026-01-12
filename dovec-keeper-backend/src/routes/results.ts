@@ -292,6 +292,17 @@ router.get("/", protect, async (req: any, res) => {
     // Cache for employee KPI values to avoid repeated DB hits
     const employeeKpiCache = new Map<string, number>();
 
+    // Aggregated raw averages for manager / teammate forms per employee
+    const employeeFormSummaryMap = new Map<
+      string,
+      {
+        managerFormTotal: number;
+        managerFormCount: number;
+        teammateFormTotal: number;
+        teammateFormCount: number;
+      }
+    >();
+
     for (const response of responses) {
       const employee = response.employee as any;
       const survey = response.survey as any;
@@ -458,11 +469,70 @@ router.get("/", protect, async (req: any, res) => {
           employeeResult.date = submittedDate.toLocaleDateString();
         }
       }
+
+      // Also accumulate simple averages for manager / teammate forms per employee
+      if (isManagerForm || isTeammateForm) {
+        let summary = employeeFormSummaryMap.get(employeeId);
+        if (!summary) {
+          summary = {
+            managerFormTotal: 0,
+            managerFormCount: 0,
+            teammateFormTotal: 0,
+            teammateFormCount: 0,
+          };
+          employeeFormSummaryMap.set(employeeId, summary);
+        }
+
+        const rawAnswers = Array.isArray(response.answers)
+          ? response.answers
+          : [];
+        for (const ans of rawAnswers) {
+          const rawValue = (ans as any).value;
+          const numValue =
+            typeof rawValue === "number"
+              ? rawValue
+              : parseFloat(String(rawValue));
+          if (isNaN(numValue)) continue;
+
+          if (isManagerForm) {
+            summary.managerFormTotal += numValue;
+            summary.managerFormCount++;
+          }
+          if (isTeammateForm) {
+            summary.teammateFormTotal += numValue;
+            summary.teammateFormCount++;
+          }
+        }
+      }
+    }
+
+    // Pre-compute manager / teammate form averages per employee
+    const employeeFormAverages = new Map<
+      string,
+      { managerFormAverage: number; teammateFormAverage: number }
+    >();
+    for (const [empId, summary] of employeeFormSummaryMap.entries()) {
+      const managerFormAverage =
+        summary.managerFormCount > 0
+          ? summary.managerFormTotal / summary.managerFormCount
+          : 0;
+      const teammateFormAverage =
+        summary.teammateFormCount > 0
+          ? summary.teammateFormTotal / summary.teammateFormCount
+          : 0;
+      employeeFormAverages.set(empId, {
+        managerFormAverage,
+        teammateFormAverage,
+      });
     }
 
     // Calculate averages for each employee+survey combination
     let results = Array.from(employeeResultsMap.values()).map((result) => {
       const count = result.responseCount || 1;
+      const averages = employeeFormAverages.get(result.employeeId) || {
+        managerFormAverage: 0,
+        teammateFormAverage: 0,
+      };
       return {
         _id: result._id,
         id: result.id,
@@ -484,6 +554,8 @@ router.get("/", protect, async (req: any, res) => {
         contributionScore: result.totalScores.contributionScore / count,
         potentialScore: result.totalScores.potentialScore / count,
         keeperScore: result.totalScores.keeperScore / count,
+        managerFormAverage: averages.managerFormAverage,
+        teammateFormAverage: averages.teammateFormAverage,
       };
     });
 
