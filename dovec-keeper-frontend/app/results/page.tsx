@@ -215,6 +215,9 @@ function ResultsPageContent() {
             return;
         }
 
+        // DEBUG: make it 100% clear which export code is running in the browser
+        alert("Exporting detailed results (v2) – this is the NEW export.");
+
         try {
             // 1. Fetch all responses (admins will receive all; others only their own)
             const [responsesRes, categoriesRes] = await Promise.all([
@@ -313,6 +316,8 @@ function ResultsPageContent() {
                     const survey = resp.survey || {};
 
                     const base: any = {
+                        // Helpful debug marker so we can see which export version this file came from
+                        "Export Version": "v2-detailed",
                         "Employee Name": employee.name || "",
                         "Employee Email": employee.email || "",
                         "Employee Department": employee.department || "",
@@ -369,7 +374,8 @@ function ResultsPageContent() {
             const columnWidths = Array(numberOfColumns).fill({ wch: 25 });
             (ws as any)["!cols"] = columnWidths;
 
-            XLSX.writeFile(wb, "detailed_results.xlsx");
+            // Very explicit file name to distinguish from the old summary export
+            XLSX.writeFile(wb, "results_detailed_v2.xlsx");
         } catch (err) {
             console.error("Error exporting detailed results:", err);
             alert(
