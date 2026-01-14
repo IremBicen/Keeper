@@ -13,6 +13,13 @@ const isManagerSurvey = (survey: any): boolean => {
   return title.includes("yönetici");
 };
 
+// Helper to determine if a survey is a "takım arkadaşı" (teammate) evaluation form
+const isTeammateSurvey = (survey: any): boolean => {
+  if (!survey) return false;
+  const title = (survey.title || survey.surveyName || "").toLowerCase();
+  return title.includes("takım arkadaşı");
+};
+
 // Check if current user can submit a yönetici survey for the target employee
 const canSubmitManagerSurveyFor = async (
   currentUser: any,
@@ -99,6 +106,7 @@ router.post("/submit", protect, async (req: any, res) => {
       .select("title surveyName");
 
     const isManagerForm = surveyDoc && isManagerSurvey(surveyDoc);
+    const isTeammateForm = surveyDoc && isTeammateSurvey(surveyDoc);
 
     if (surveyDoc && isManagerForm) {
       const targetEmployee = await User.findById(employee).select(
@@ -121,11 +129,11 @@ router.post("/submit", protect, async (req: any, res) => {
     // - Manager + teammate surveys: at most one response per (survey, employee target, evaluator)
     let existingQuery: any = { survey, employee };
 
-    if (surveyDoc && isManagerForm) {
-      // Manager (yönetici) surveys → one per evaluator + target
+    if (surveyDoc && (isManagerForm || isTeammateForm)) {
+      // Manager (yönetici) and teammate (takım arkadaşı) surveys → one per evaluator + target
       existingQuery.evaluator = req.user._id;
     } else {
-      // For non-manager surveys, we keep legacy behavior:
+      // For self/keeper and other legacy surveys, we keep old behavior:
       // one response per (survey, employee/self). Old records without evaluator
       // will still be matched by this.
     }
