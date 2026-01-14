@@ -209,7 +209,7 @@ function ResultsPageContent() {
         });
 
     // Export detailed results: one row per response, one column per question
-    const handleExport = async () => {
+    const handleExportDetailed = async () => {
         if (!token) {
             alert("You must be logged in to export results.");
             return;
@@ -384,6 +384,43 @@ function ResultsPageContent() {
         }
     };
 
+    // Export summary results: one row per aggregated result (keeper + form averages)
+    const handleExportSummary = () => {
+        if (!token) {
+            alert("You must be logged in to export results.");
+            return;
+        }
+
+        if (!resultsData || resultsData.length === 0) {
+            alert("No results found to export.");
+            return;
+        }
+
+        const rows = resultsData.map((result) => ({
+            "Employee Name": result.employeeName,
+            "Department": result.department,
+            "Survey Name": result.surveyTitle || "Unknown Survey",
+            "Date": result.date,
+            "KPI Score": typeof result.kpiScore === "number" ? result.kpiScore.toFixed(1) : "",
+            "Performance Score": typeof result.performanceScore === "number" ? result.performanceScore.toFixed(1) : "",
+            "Contribution Score": typeof result.contributionScore === "number" ? result.contributionScore.toFixed(1) : "",
+            "Potential Score": typeof result.potentialScore === "number" ? result.potentialScore.toFixed(1) : "",
+            "Keeper Score": typeof result.keeperScore === "number" ? result.keeperScore.toFixed(1) : "",
+            "Manager Form Average": typeof result.managerFormAverage === "number" ? result.managerFormAverage.toFixed(2) : "",
+            "Teammate Form Average": typeof result.teammateFormAverage === "number" ? result.teammateFormAverage.toFixed(2) : "",
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(rows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Summary Results");
+
+        const numberOfColumns = Object.keys(rows[0]).length;
+        const columnWidths = Array(numberOfColumns).fill({ wch: 25 });
+        (ws as any)["!cols"] = columnWidths;
+
+        XLSX.writeFile(wb, "results_summary.xlsx");
+    };
+
     // ---------------------------------------------
 
     return (
@@ -392,13 +429,22 @@ function ResultsPageContent() {
             <main className="dashboard-main">
                 <header className="dashboard-header results-header">
                     <h1 className="dashboard-title">Results</h1>
-                    <button
-                        className="btn btn-light btn-with-icon"
-                        onClick={handleExport}
-                    >
-                        <HiArrowUpOnSquare width={16} height={16} />
-                        Export
-                    </button>
+                    <div style={{ display: "flex", gap: "0.5rem" }}>
+                        <button
+                            className="btn btn-light btn-with-icon"
+                            onClick={handleExportSummary}
+                        >
+                            <HiArrowUpOnSquare width={16} height={16} />
+                            Export Summary
+                        </button>
+                        <button
+                            className="btn btn-light btn-with-icon"
+                            onClick={handleExportDetailed}
+                        >
+                            <HiArrowUpOnSquare width={16} height={16} />
+                            Export Results
+                        </button>
+                    </div>
                 </header>
                 <div className="box-container">
                     {/* Filters */}
