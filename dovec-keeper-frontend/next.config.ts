@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Export app as static HTML so nginx can serve it from /var/www/dovec-frontend
+  output: "export",
 };
 
 export default nextConfig;
